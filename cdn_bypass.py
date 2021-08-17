@@ -1,6 +1,7 @@
 # AUTHOR: Dave Yesland @daveysec, Rhino Security Labs @rhinosecurity
 # Burp Suite extension which uses AWS API Gateway to change your IP on every request to bypass IP blocking.
 # More Info: https://rhinosecuritylabs.com/aws/bypassing-ip-based-blocking-aws/
+from time import time
 
 from javax.swing import JPanel, JTextField, JButton, JLabel, BoxLayout, JPasswordField, JCheckBox, JRadioButton, \
     ButtonGroup
@@ -14,11 +15,6 @@ ENABLED = '<html><h2><font color="green">Enabled</font></h2></html>'
 DISABLED = '<html><h2><font color="red">Disabled</font></h2></html>'
 STAGE_NAME = 'burpendpoint'
 API_NAME = 'BurpAPI'
-AVAIL_REGIONS = [
-    "us-east-1", "us-west-1", "us-east-2",
-    "us-west-2", "eu-central-1", "eu-west-1",
-    "eu-west-2", "eu-west-3", "sa-east-1", "eu-north-1"
-]
 
 
 class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
@@ -27,7 +23,6 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
         self.currentEndpoint = 0
         self.aws_access_key_id = ''
         self.aws_secret_accesskey = ''
-        self.enabled_regions = {}
 
     def registerExtenderCallbacks(self, callbacks):
         self.callbacks = callbacks
@@ -45,17 +40,6 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
         else:
             return 'http'
 
-    def getRegions(self):
-        self.enabled_regions = {}
-        for region in AVAIL_REGIONS:
-            cur_region = region.replace('-', '_')
-            cur_region = cur_region + '_status'
-            region_status = getattr(self, cur_region)
-            if region_status.isSelected():
-                # dict to contain the running regions and API gateway IDs
-                self.enabled_regions.update({region: ''})
-        return
-
     # AWS functions
 
     # Uses boto3 to test the AWS keys and make sure they are valid NOT IMPLEMENTED
@@ -64,130 +48,116 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
 
     # Uses boto3 to spin up an API Gateway
     def startAPIGateway(self):
-        self.getRegions()
-        for region in self.enabled_regions.keys():
-            self.awsclient = boto3.client(
-                'apigateway',
-                 aws_access_key_id=self.access_key.text,
-                 aws_secret_access_key=self.secret_key.text,
-                 region_name=region
-            )
+        self.client = boto3.client(
+            'cloudfront',
+            aws_access_key_id=self.access_key.text,
+            aws_secret_access_key=self.secret_key.text,
+            region_name='us-east-1',
+        )
 
-            self.create_api_response = self.awsclient.create_rest_api(
-                name=API_NAME,
-                endpointConfiguration={
-                    'types': [
-                        'REGIONAL',
+        resp = self.client.create_distribution(
+            DistributionConfig={
+                'CallerReference': time(),
+                'Origins': {
+                    'Quantity': 1,
+                    'Items': [
+                        {
+                            'Id': 'default',
+                            'DomainName': self.target_host,
+                            'CustomOriginConfig': {
+                                'HTTPPort': 123,
+                                'HTTPSPort': 123,
+                                'OriginProtocolPolicy': 'http-only', # TODO: Add option for this | 'match-viewer' | 'https-only',
+                                'OriginSslProtocols': {
+                                    'Quantity': 4,
+                                    'Items': [
+                                        'SSLv3',
+                                        'TLSv1',
+                                        'TLSv1.1',
+                                        'TLSv1.2',
+                                    ]
+                                },
+                            },
+                            'OriginShield': {
+                                'Enabled': False,
+                            }
+                        },
                     ]
-                }
-            )
+                },
+                'DefaultCacheBehavior': {
+                    'TargetOriginId': 'default',
+                    'ViewerProtocolPolicy': 'allow-all',
+                    'AllowedMethods': {
+                        'Quantity': 7,
+                        'Items': [
+                            'GET',
+                            'HEAD',
+                            'POST',
+                            'PUT',
+                            'PATCH',
+                            'OPTIONS',
+                            'DELETE',
+                        ],
+                        'CachedMethods': {
+                            'Quantity': 7,
+                            'Items': [
+                                'GET',
+                                'HEAD',
+                                'POST',
+                                'PUT',
+                                'PATCH',
+                                'OPTIONS',
+                                'DELETE',
+                            ]
+                        }
+                    },
+                    'Compress': False,
+                    # 'LambdaFunctionAssociations': {
+                    #     'Quantity': 123,
+                    #     'Items': [
+                    #         {
+                    #             'LambdaFunctionARN': 'string',
+                    #             'EventType': 'viewer-request' | 'viewer-response' | 'origin-request' | 'origin-response',
+                    #             'IncludeBody': True | False
+                    #         },
+                    #     ]
+                    # },
+                    'CachePolicyId': '4135ea2d-6df8-44a3-9df3-4b5a84be39ad',
+                },
+                'CacheBehaviors': {
+                    'Quantity': 0,
+                },
+                'Comment': 'cdn-bypass todo update description',
+                'PriceClass': 'PriceClass_100',
+                'Enabled': True,
+                'ViewerCertificate': {
+                    'CloudFrontDefaultCertificate': True,
+                    'MinimumProtocolVersion': 'TLSv1.2_2018',
+                },
+                'HttpVersion': 'http1.1',
+                'IsIPV6Enabled': False,
+            }
+        )
+        print resp
+        self.distribution_id = resp['Distribution']['Id']
 
-            get_resource_response = self.awsclient.get_resources(
-                restApiId=self.create_api_response['id']
-            )
-
-            self.restAPIId = self.create_api_response['id']
-            self.enabled_regions[region] = self.restAPIId
-
-            create_resource_response = self.awsclient.create_resource(
-                restApiId=self.create_api_response['id'],
-                parentId=get_resource_response['items'][0]['id'],
-                pathPart='{proxy+}'
-            )
-
-            self.awsclient.put_method(
-                restApiId=self.create_api_response['id'],
-                resourceId=get_resource_response['items'][0]['id'],
-                httpMethod='ANY',
-                authorizationType='NONE',
-                requestParameters={
-                    'method.request.path.proxy': True,
-                    'method.request.header.X-My-X-Forwarded-For': True
-                }
-            )
-
-            self.awsclient.put_integration(
-                restApiId=self.create_api_response['id'],
-                resourceId=get_resource_response['items'][0]['id'],
-                type='HTTP_PROXY',
-                httpMethod='ANY',
-                integrationHttpMethod='ANY',
-                uri=self.getTargetProtocol() + '://' + self.target_host.text + '/',
-                connectionType='INTERNET',
-                requestParameters={
-                    'integration.request.path.proxy': 'method.request.path.proxy',
-                    'integration.request.header.X-Forwarded-For': 'method.request.header.X-My-X-Forwarded-For'
-                }
-            )
-
-            self.awsclient.put_method(
-                restApiId=self.create_api_response['id'],
-                resourceId=create_resource_response['id'],
-                httpMethod='ANY',
-                authorizationType='NONE',
-                requestParameters={
-                    'method.request.path.proxy': True,
-                    'method.request.header.X-My-X-Forwarded-For': True
-                }
-            )
-
-            self.awsclient.put_integration(
-                restApiId=self.create_api_response['id'],
-                resourceId=create_resource_response['id'],
-                type='HTTP_PROXY',
-                httpMethod='ANY',
-                integrationHttpMethod='ANY',
-                uri=self.getTargetProtocol() + '://' + self.target_host.text + '/{proxy}',
-                connectionType='INTERNET',
-                requestParameters={
-                    'integration.request.path.proxy': 'method.request.path.proxy',
-                    'integration.request.header.X-Forwarded-For': 'method.request.header.X-My-X-Forwarded-For'
-                }
-            )
-
-            self.deploy_response = self.awsclient.create_deployment(
-                restApiId=self.restAPIId,
-                stageName=STAGE_NAME
-
-            )
-
-            self.allEndpoints.append(self.restAPIId + '.execute-api.' + region + '.amazonaws.com')
-
-            self.usage_response = self.awsclient.create_usage_plan(
-                name='burpusage',
-                description=self.restAPIId,
-                apiStages=[
-                    {
-                        'apiId': self.restAPIId,
-                        'stage': STAGE_NAME
-                    }
-                ]
-            )
-
-        # Print out some info to burp console
-        print 'Following regions and API IDs started:'
-        print self.enabled_regions
-        print 'List of endpoints being used:'
-        print self.allEndpoints
-        return
+        print 'CloudFront deployed'
 
     # Uses boto3 to delete the API Gateway
     def deleteAPIGateway(self):
-        if self.enabled_regions:
-            for region in self.enabled_regions.keys():
-                self.awsclient = boto3.client('apigateway',
-                                              aws_access_key_id=self.access_key.text,
-                                              aws_secret_access_key=self.secret_key.text,
-                                              region_name=region
-                                              )
+        self.client = boto3.client(
+            'cloudfront',
+            aws_access_key_id=self.access_key.text,
+            aws_secret_access_key=self.secret_key.text,
+            region_name='us-east-1',
+        )
 
-                response = self.awsclient.delete_rest_api(
-                    restApiId=self.enabled_regions[region]
-                )
-                print response
-        self.enabled_regions = {}
-        self.allEndpoints = []
-        return
+        resp = self.client.delete_distribution(
+            Id=self.distribution_id,
+        )
+        print resp
+
+        print 'CloudFront deleted'
 
     # Called on "save" button click to save the settings
     def saveKeys(self, event):
@@ -349,21 +319,6 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
         buttongroup = ButtonGroup()
         buttongroup.add(self.https_button)
         buttongroup.add(self.http_button)
-
-        self.regions_title = JPanel()
-        self.main.add(self.regions_title)
-        self.regions_title.add(JLabel("Regions to launch API Gateways in:"))
-
-        self.regions_panel = JPanel()
-        self.main.add(self.regions_panel)
-        glayout = GridLayout(4, 3)
-        self.regions_panel.setLayout(glayout)
-        for region in AVAIL_REGIONS:
-            cur_region = region.replace('-', '_')
-            cur_region = cur_region + '_status'
-            setattr(self, cur_region, JCheckBox(region, True))
-            attr = getattr(self, cur_region)
-            self.regions_panel.add(attr)
 
         self.status = JPanel()
         self.main.add(self.status)
