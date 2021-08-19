@@ -10,15 +10,25 @@ from java.awt import GridLayout
 import boto3
 import re
 
+
+from cdn_bypass.main import CloudFrontBypass
+
+
+# import xml.parsers.expat
+# xml.parsers.expat._xerces_parser_name = "org.apache.xerces.parsers.SAXParser"
+
 EXT_NAME = 'IP Rotate'
 ENABLED = '<html><h2><font color="green">Enabled</font></h2></html>'
 DISABLED = '<html><h2><font color="red">Disabled</font></h2></html>'
 STAGE_NAME = 'burpendpoint'
 API_NAME = 'BurpAPI'
 
+# import xml.etree.ElementTree as ET
+# ET.fromstring('<test></test>')
 
 class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
     def __init__(self):
+        self.cloudfront = None
         self.allEndpoints = []
         self.currentEndpoint = 0
         self.aws_access_key_id = ''
@@ -40,125 +50,6 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
         else:
             return 'http'
 
-    # AWS functions
-
-    # Uses boto3 to test the AWS keys and make sure they are valid NOT IMPLEMENTED
-    def testKeys(self):
-        return
-
-    # Uses boto3 to spin up an API Gateway
-    def startAPIGateway(self):
-        self.client = boto3.client(
-            'cloudfront',
-            aws_access_key_id=self.access_key.text,
-            aws_secret_access_key=self.secret_key.text,
-            region_name='us-east-1',
-        )
-
-        resp = self.client.create_distribution(
-            DistributionConfig={
-                'CallerReference': time(),
-                'Origins': {
-                    'Quantity': 1,
-                    'Items': [
-                        {
-                            'Id': 'default',
-                            'DomainName': self.target_host.text,
-                            'CustomOriginConfig': {
-                                'HTTPPort': 123,
-                                'HTTPSPort': 123,
-                                'OriginProtocolPolicy': 'http-only', # TODO: Add option for this | 'match-viewer' | 'https-only',
-                                'OriginSslProtocols': {
-                                    'Quantity': 4,
-                                    'Items': [
-                                        'SSLv3',
-                                        'TLSv1',
-                                        'TLSv1.1',
-                                        'TLSv1.2',
-                                    ]
-                                },
-                            },
-                            'OriginShield': {
-                                'Enabled': False,
-                            }
-                        },
-                    ]
-                },
-                'DefaultCacheBehavior': {
-                    'TargetOriginId': 'default',
-                    'ViewerProtocolPolicy': 'allow-all',
-                    'AllowedMethods': {
-                        'Quantity': 7,
-                        'Items': [
-                            'GET',
-                            'HEAD',
-                            'POST',
-                            'PUT',
-                            'PATCH',
-                            'OPTIONS',
-                            'DELETE',
-                        ],
-                        'CachedMethods': {
-                            'Quantity': 7,
-                            'Items': [
-                                'GET',
-                                'HEAD',
-                                'POST',
-                                'PUT',
-                                'PATCH',
-                                'OPTIONS',
-                                'DELETE',
-                            ]
-                        }
-                    },
-                    'Compress': False,
-                    # 'LambdaFunctionAssociations': {
-                    #     'Quantity': 123,
-                    #     'Items': [
-                    #         {
-                    #             'LambdaFunctionARN': 'string',
-                    #             'EventType': 'viewer-request' | 'viewer-response' | 'origin-request' | 'origin-response',
-                    #             'IncludeBody': True | False
-                    #         },
-                    #     ]
-                    # },
-                    'CachePolicyId': '4135ea2d-6df8-44a3-9df3-4b5a84be39ad',
-                },
-                'CacheBehaviors': {
-                    'Quantity': 0,
-                },
-                'Comment': 'cdn-bypass todo update description',
-                'PriceClass': 'PriceClass_100',
-                'Enabled': True,
-                'ViewerCertificate': {
-                    'CloudFrontDefaultCertificate': True,
-                    'MinimumProtocolVersion': 'TLSv1.2_2018',
-                },
-                'HttpVersion': 'http1.1',
-                'IsIPV6Enabled': False,
-            }
-        )
-        print resp
-        self.distribution_id = resp['Distribution']['Id']
-
-        print 'CloudFront deployed'
-
-    # Uses boto3 to delete the API Gateway
-    def deleteAPIGateway(self):
-        self.client = boto3.client(
-            'cloudfront',
-            aws_access_key_id=self.access_key.text,
-            aws_secret_access_key=self.secret_key.text,
-            region_name='us-east-1',
-        )
-
-        resp = self.client.delete_distribution(
-            Id=self.distribution_id,
-        )
-        print resp
-
-        print 'CloudFront deleted'
-
     # Called on "save" button click to save the settings
     def saveKeys(self, event):
         aws_access_key_id = self.access_key.text
@@ -168,32 +59,17 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
         return
 
     # Called on "Enable" button click to spin up the API Gateway
-    def enableGateway(self, event):
-        self.startAPIGateway()
-        self.status_indicator.text = ENABLED
-        self.isEnabled = True
-        self.enable_button.setEnabled(False)
-        self.secret_key.setEnabled(False)
-        self.access_key.setEnabled(False)
-        self.target_host.setEnabled(False)
-        self.disable_button.setEnabled(True)
-        return
+    def deploy_cloudfront(self, event):
+        sess = boto3.session.Session(
+            aws_access_key_id=self.aws_access_key_id,
+            aws_secret_access_key=self.aws_secret_accesskey,
+        )
+        self.cloudfront = CloudFrontBypass(sess, self.target_host)
+        self.cloudfront.deploy()
 
     # Called on "Disable" button click to delete API Gateway
-    def disableGateway(self, event):
-        self.deleteAPIGateway()
-        self.status_indicator.text = DISABLED
-        self.isEnabled = False
-        self.enable_button.setEnabled(True)
-        self.secret_key.setEnabled(True)
-        self.access_key.setEnabled(True)
-        self.target_host.setEnabled(True)
-        self.disable_button.setEnabled(False)
-        return
-
-    def getCurrEndpoint():
-
-        return
+    def destroy_cloudfront(self, event):
+        self.cloudfront.destroy()
 
     # Traffic redirecting
     def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
@@ -259,8 +135,8 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
 
     # Handle extension unloading
     def extensionUnloaded(self):
-        self.deleteAPIGateway()
-        return
+        if self.cloudfront:
+            self.destroy_cloudfront()
 
     # Layout the UI
     def getUiComponent(self):
@@ -302,9 +178,9 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
         self.buttons_panel.setLayout(BoxLayout(self.buttons_panel, BoxLayout.X_AXIS))
         self.save_button = JButton('Save Keys', actionPerformed=self.saveKeys)
         self.buttons_panel.add(self.save_button)
-        self.enable_button = JButton('Enable', actionPerformed=self.enableGateway)
+        self.enable_button = JButton('Enable', actionPerformed=self.deploy_cloudfront)
         self.buttons_panel.add(self.enable_button)
-        self.disable_button = JButton('Disable', actionPerformed=self.disableGateway)
+        self.disable_button = JButton('Disable', actionPerformed=self.destroy_cloudfront)
         self.buttons_panel.add(self.disable_button)
         self.disable_button.setEnabled(False)
 
@@ -327,4 +203,5 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
         self.status.add(self.status_indicator)
 
         self.panel.add(self.main)
+
         return self.panel

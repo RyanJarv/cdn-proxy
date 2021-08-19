@@ -1,6 +1,9 @@
 import random
 import os
 
+# Lambda@Edge functions cannot have environment variables, so this gets replaced at deploy time.
+HOST = ''
+
 
 def lambda_handler(event, context):
     request = event['Records'][0]['cf']['request']

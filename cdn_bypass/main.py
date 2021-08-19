@@ -2,10 +2,14 @@ from __future__ import print_function
 
 from time import time
 
-from cdn_bypass.lib import create_function, create_lambda_role, create_cloudfront_distribution
+from cdn_bypass.lib import create_function, create_lambda_role, create_cloudfront_distribution, \
+    delete_cloudfront_distribution
 
 
-class CdnBypass:
+# import xml.parsers.expat
+# xml.parsers.expat._xerces_parser_name = "org.apache.xerces.parsers.SAXParser"
+
+class CdnBypass(object):
     def __init__(self, target):
         self.target = target
 
@@ -27,13 +31,11 @@ class CloudFrontBypass(CdnBypass):
         super(CloudFrontBypass, self).__init__(*args, **kwargs)
 
     def deploy(self):
-        create_lambda_role(LAMBDA_FUNCTION_NAME, LAMBDA_ROLE_NAME)
-        create_function(LAMBDA_FUNCTION_NAME, LAMBDA_ROLE_NAME, self.target)
-        self.distribution_id = create_cloudfront_distribution(self.target)
+        role_arn = create_lambda_role(self.sess, LAMBDA_FUNCTION_NAME, LAMBDA_ROLE_NAME)
+        # lambda_arn = create_function(self.sess, LAMBDA_FUNCTION_NAME, role_arn, self.target)
+        # self.distribution_id = create_cloudfront_distribution(self.sess, self.target, lambda_arn)
         print('CloudFront deployed')
-        return self.distribution_id
+        # return self.distribution_id
 
     def destroy(self):
-        client = self.sess.client('cloudfront', region_name='us-east-1')
-        resp = client.delete_distribution(Id=self.distribution_id)
-        print('CloudFront destroyed')
+        delete_cloudfront_distribution(self.sess, self.distribution_id)
