@@ -63,7 +63,7 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
                     'Items': [
                         {
                             'Id': 'default',
-                            'DomainName': self.target_host,
+                            'DomainName': self.target_host.text,
                             'CustomOriginConfig': {
                                 'HTTPPort': 123,
                                 'HTTPSPort': 123,
