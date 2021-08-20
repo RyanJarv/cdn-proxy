@@ -23,6 +23,8 @@ This fix however is incomplete, it can be bypassed by setting up a second accoun
 same origin. Security protections on this second account can be disabled, sidestepping any protections on the real
 account in a similar way to the original issue.
 
+![CDN Proxy Diagram](./docs/cdn-proxy-diagram.png)
+
 ## Prerequisites
 
 * CloudFlare or CloudFront is used to filter or restrict traffic.
