@@ -3,7 +3,7 @@ import boto3
 
 import typer
 
-from cdn_bypass.cloudfront import CloudFront
+from cdn_proxy.cloudfront import CloudFront
 
 app = typer.Typer(name="cloudfront", help="Manage CloudFront distributions")
 

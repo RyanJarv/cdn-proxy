@@ -1,10 +1,10 @@
 from botocore.exceptions import NoCredentialsError, NoRegionError
 
-from cdn_bypass.cli import app
+from cdn_proxy.cli import app
 import logging
 import typer
 
-from cdn_bypass.lib import CdnProxyException
+from cdn_proxy.lib import CdnProxyException
 
 logging.basicConfig(format='[%(levelname)s] %(message)s', level=logging.WARNING)
 

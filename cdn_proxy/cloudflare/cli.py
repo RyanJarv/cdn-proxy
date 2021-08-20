@@ -3,7 +3,7 @@ import boto3
 
 import typer
 
-from cdn_bypass.cloudflare import CloudFlare
+from cdn_proxy.cloudflare import CloudFlare
 
 app = typer.Typer(name="cloudflare", help="Manage CloudFlare distributions")
 

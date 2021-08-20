@@ -1,8 +1,8 @@
 import pytest
 import boto3
 
-from cdn_bypass.lib import create_cloudfront_distribution, delete_cloudfront_distribution
-from cdn_bypass.main import CloudFrontBypass
+from cdn_proxy.lib import create_cloudfront_distribution, delete_cloudfront_distribution
+from cdn_proxy.main import CloudFrontBypass
 
 
 @pytest.fixture

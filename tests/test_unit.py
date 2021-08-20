@@ -4,7 +4,7 @@ import pytest
 import boto3
 from moto import mock_iam, mock_lambda
 
-from cdn_bypass.lib import create_function, create_lambda_role
+from cdn_proxy.lib import create_function, create_lambda_role
 
 
 @pytest.fixture

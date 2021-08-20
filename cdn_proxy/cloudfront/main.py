@@ -7,7 +7,7 @@ from time import time, sleep
 
 import botocore.exceptions
 
-from cdn_bypass.lib import CdnProxyException
+from cdn_proxy.lib import CdnProxyException
 
 
 class CloudFront:
