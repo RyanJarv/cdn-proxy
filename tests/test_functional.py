@@ -25,5 +25,5 @@ def test_delete_cloudfront_distribution(sess, distribution):
 
 
 def test_deploy_destroy(cloudfront):
-    cloudfront.deploy()
+    cloudfront.create()
     cloudfront.destroy()
