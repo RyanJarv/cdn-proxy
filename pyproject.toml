@@ -5,6 +5,9 @@ description = "Take advantage of IP whitelisting of shared CDNs."
 authors = ["Ryan Gerstenkorn"]
 license = "BSD-3"
 
+[tool.poetry.scripts]
+cdn-proxy = "cdn_proxy.__main__:main"
+
 [tool.poetry.dependencies]
 python = "^3.6"
 botocore = "^1.21.25"
