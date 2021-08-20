@@ -17,9 +17,11 @@ disabled.
 
 If an attacker has the origin IP of an application they may be able to bypass the CDN by making requests to the IP
 itself, side stepping any protections that the CDN provides. A common response to this is to IP whitelist the CDN range
-on the origin server, preventing these type of CDN bypasses. This fix however is incomplete and can be bypassed by
-setting up a second account on the CDN routing requests to the same origin. Security protections on this second account
-can be disabled, sidestepping any protections on the real account similarly to the original issue.
+on the origin server, preventing these type of CDN bypasses.
+
+This fix however is incomplete, it can be bypassed by setting up a second account on the CDN routing requests to the
+same origin. Security protections on this second account can be disabled, sidestepping any protections on the real
+account in a similar way to the original issue.
 
 ## Prerequisites
 
