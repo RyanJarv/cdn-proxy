@@ -31,7 +31,7 @@ def create(target: str = typer.Argument(..., help='Optional device name to limit
     """
 
     cloudfront = CloudFront(sess, target)
-    with typer.progressbar(cloudfront.create(), length=18, label=f"Creating {target}") as progress:
+    with typer.progressbar(cloudfront.create(), length=20, label=f"Creating {target}") as progress:
         for update in progress:
             progress.update(1)
             progress.label = typer.style(update, fg=typer.colors.CYAN)
@@ -47,7 +47,7 @@ def delete(target: str = typer.Argument(..., help='Optional device name to limit
     """
 
     cloudfront = CloudFront(sess, target)
-    with typer.progressbar(cloudfront.delete(), length=12, label=f"Destroying {id}") as progress:
+    with typer.progressbar(cloudfront.delete(), length=20, label=f"Destroying {id}") as progress:
         for update in progress:
             progress.update(1)
             progress.label = typer.style(update, fg=typer.colors.CYAN)

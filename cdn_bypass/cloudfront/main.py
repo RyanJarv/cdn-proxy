@@ -3,7 +3,7 @@ import os
 import re
 import zipfile
 from pathlib import Path
-from time import time
+from time import time, sleep
 
 import botocore.exceptions
 
@@ -140,10 +140,10 @@ class CloudFront:
             source_code = f.read()
 
         # Lambda@Edge functions can't use environment variables so set this as a global.
-        source_code = re.sub(r'HOST\w+=.*$', 'HOST = "{}"'.format(self.target), source_code)
+        source_code = re.sub(r'HOST\s+=.*$', 'HOST = "{}"'.format(self.target), source_code)
 
         if self.x_forwarded_for:
-            source_code = re.sub(r'X_FORWARDED_FOR\w+=.*$', 'X_FORWARDED_FOR = "{}"'.format(self.x_forwarded_for),
+            source_code = re.sub(r'X_FORWARDED_FOR\s+=.*$', 'X_FORWARDED_FOR = "{}"'.format(self.x_forwarded_for),
                                  source_code)
 
         zip = io.BytesIO()
@@ -163,7 +163,6 @@ class CloudFront:
                 raise e
 
         yield f'Lambda@Edge Function {self.lambda_function_name} -- Creating function'
-        import pdb; pdb.set_trace()
         resp = lamb.create_function(
             FunctionName=self.lambda_function_name,
             Runtime='python3.8',
@@ -196,11 +195,26 @@ class CloudFront:
         lamb = self.sess.client('lambda', region_name='us-east-1')
         yield f'Lambda@Edge Function {self.lambda_function_name} -- Deleting'
 
-        try:
-            lamb.delete_function(FunctionName=self.lambda_function_name)
-        except botocore.exceptions.ClientError as e:
-            if e.response['Error']['Code'] != 'ResourceNotFoundException':
-                raise e
+        # It takes some time after you disassociate a lambda function from a CloudFront distribution before you can
+        # delete it successfully.
+        while True:
+            i = 1
+            try:
+                yield f'Lambda@Edge Function {self.lambda_function_name} -- Deleting (attempt {i}, this may take a ' \
+                      'while)'
+                lamb.delete_function(FunctionName=self.lambda_function_name)
+                break
+            except botocore.exceptions.ClientError as e:
+                if e.response['Error']['Code'] == 'InvalidParameterValueException':
+                    pass
+                elif e.response['Error']['Code'] == 'ResourceNotFoundException':
+                    print("\n[ERROR] Lambda function {} not found.".format(self.lambda_function_name))
+                    return
+                else:
+                    raise e
+
+            i += 1
+            sleep(10)
 
         yield f'Lambda@Edge Function {self.lambda_function_name} -- Deleted'
 
@@ -283,7 +297,7 @@ class CloudFront:
                         'CacheBehaviors': {
                             'Quantity': 0,
                         },
-                        'Comment': 'cdn-bypass todo update description',
+                        'Comment': 'cdn-proxy distribution for {}'.format(self.target),
                         'PriceClass': 'PriceClass_100',
                         'Enabled': True,
                         'ViewerCertificate': {
@@ -331,7 +345,9 @@ class CloudFront:
                                         'if so.')
         config = resp['DistributionConfig']
         config['Enabled'] = False
-        config['DefaultCacheBehavior']['LambdaFunctionAssociations'] = {}
+        config['DefaultCacheBehavior']['LambdaFunctionAssociations'] = {
+            "Quantity": 0,
+        }
         yield f'CloudFront Distribution {dist_id} -- Disabling'
         client.update_distribution(Id=dist_id, DistributionConfig=config, IfMatch=resp['ETag'])
         yield f'CloudFront Distribution {dist_id} -- Waiting for propagation (this may take a while)'
@@ -349,5 +365,3 @@ class CloudFront:
         versions = [v['Version'] for v in resp['Versions']]
         versions.remove('$LATEST')
         return max(versions)
-
-
