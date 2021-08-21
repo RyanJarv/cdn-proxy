@@ -25,6 +25,8 @@ account in a similar way to the original issue.
 
 ![CDN Proxy Diagram](./docs/cdn-proxy-diagram.png)
 
+https://user-images.githubusercontent.com/4079939/130310987-3ad7e7b4-db7f-4a6e-b511-14ef7a9dbab4.mov
+
 ## Prerequisites
 
 * CloudFlare or CloudFront is used to filter or restrict traffic.
