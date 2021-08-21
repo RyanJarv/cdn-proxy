@@ -50,7 +50,7 @@ def delete(target: str = typer.Argument(..., help='Optional device name to limit
     """
 
     cloudfront = CloudFront(sess, target)
-    with typer.progressbar(cloudfront.delete(), length=20, label=f"Destroying {id}") as progress:
+    with typer.progressbar(cloudfront.delete(), length=30, label=f"Destroying {id}") as progress:
         for update in progress:
             progress.label = typer.style(update, fg=typer.colors.CYAN)
             progress.update(1)
