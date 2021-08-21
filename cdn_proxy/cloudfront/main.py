@@ -7,7 +7,7 @@ from time import time, sleep
 
 import botocore.exceptions
 
-from cdn_proxy.lib import CdnProxyException
+from cdn_proxy.lib import CdnProxyException, trim
 
 
 class CloudFront:
@@ -29,7 +29,7 @@ class CloudFront:
         yield from self.create_function(self.lambda_role_arn)
         yield from self.create_distribution(self.lambda_arn)
         yield from self.wait_for_distribution()
-        yield f'Deployment for {self.target} finished.'
+        yield f'Deployment for {trim(self.target, 25)}... finished.'
 
     def delete(self):
         try:
@@ -48,7 +48,7 @@ class CloudFront:
             else:
                 raise e
 
-        yield f'Deployment for {self.target} deleted'
+        yield f'Deployment for {trim(self.target, 25)}... deleted'
 
     @staticmethod
     def list(sess):
@@ -61,13 +61,13 @@ class CloudFront:
                     yield item['Value'], dist['Id']
 
     def create_lambda_role(self):
-        yield f'Lambda Role {self.lambda_role_name[0:15]}... -- Creating'
+        yield f'Lambda Role {trim(self.lambda_role_name, 15)}... -- Creating'
         iam = self.sess.client('iam', region_name='us-east-1')
 
         try:
             resp = iam.get_role(RoleName=self.lambda_role_name)
             self.lambda_role_arn = resp['Role']['Arn']
-            yield f'IAM Role {self.lambda_role_name} -- Already Exists'
+            yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Already Exists'
             return
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] != 'NoSuchEntity':
@@ -93,7 +93,7 @@ class CloudFront:
             Description='Execution roles for lambdas created by the cdn-bypass burp plugin.',
         )
 
-        yield f'IAM Role {self.lambda_role_name} -- Adding Policy'
+        yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Adding Policy'
         iam.put_role_policy(
             RoleName=self.lambda_role_name,
             PolicyName='basic-execution',
@@ -119,10 +119,10 @@ class CloudFront:
             }}'''.format(self.lambda_function_name)
         )
         self.lambda_role_arn = resp['Role']['Arn']
-        yield f'IAM Role {self.lambda_role_name} -- Created'
+        yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Created'
 
     def delete_lambda_role(self):
-        yield f'IAM Role {self.lambda_role_name} -- Deleting'
+        yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Deleting'
         iam = self.sess.client('iam', region_name='us-east-1')
 
         iam.delete_role_policy(RoleName=self.lambda_role_name, PolicyName='basic-execution')
@@ -133,10 +133,10 @@ class CloudFront:
             if e.response['Error']['Code'] != 'NoSuchEntity':
                 raise e
 
-        yield f'IAM Role {self.lambda_role_name} -- Deleted'
+        yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Deleted'
 
     def create_function(self, lambda_role_arn):
-        yield f'Lambda {self.lambda_function_name[0:15]}... -- Creating'
+        yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Creating'
         main = Path(__file__).parents[1]/'lambdas/request/main.py'
         with open(main, 'r') as f:
             source_code = f.read()
@@ -151,7 +151,6 @@ class CloudFront:
         zip = io.BytesIO()
         with zipfile.ZipFile(zip, 'w', zipfile.ZIP_DEFLATED) as zip_file:
             zip_file.writestr('main.py', source_code)
-        zip.seek(0)
 
         lamb = self.sess.client('lambda', region_name='us-east-1')
 
@@ -164,16 +163,19 @@ class CloudFront:
                 raise e
 
         if exists:
+            zip.seek(0)
             resp = lamb.update_function_code(
                 FunctionName=self.lambda_function_name,
                 ZipFile=zip.read(),
-                Publish=True,
+                Publish=False,
             )
         else:
             i = 1
-            while True:
-                yield f'Lambda {self.lambda_function_name[0:15]}... -- Creating function (attempt {i})'
+            resp = None
+            while not resp:
+                yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Creating function ({i})'
                 try:
+                    zip.seek(0)
                     resp = lamb.create_function(
                         FunctionName=self.lambda_function_name,
                         Runtime='python3.8',
@@ -188,39 +190,35 @@ class CloudFront:
                         Publish=False,
                         PackageType='Zip',
                     )
-                    break
                 except botocore.exceptions.ClientError as e:
                     # It seems this sometimes happens if the function is created to soon after creating the role.
-                    if e.response['Error']['Code'] == 'InvalidParameterValueException':
-                        import pdb; pdb.set_trace()
-                        pass
-                    else:
+                    if e.response['Error']['Code'] != 'InvalidParameterValueException':
                         raise e
-                i += 1
-                sleep(5)
+                    i += 1
+                    sleep(5)
 
-            yield f'Lambda {self.lambda_function_name[0:15]}... -- Adding permissions'
+            yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Adding permissions'
             lamb.add_permission(
                 StatementId='replicator',
                 FunctionName=resp['FunctionName'],
                 Principal='replicator.lambda.amazonaws.com',
                 Action='lambda:GetFunction',
             )
-            yield f'Lambda {self.lambda_function_name[0:15]}... -- Publishing'
+            yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Publishing'
 
-        lamb.publish_version(FunctionName=resp['FunctionName'])
+        resp = lamb.publish_version(FunctionName=resp['FunctionName'])
         self.lambda_arn = resp['FunctionArn']
 
     def delete_function(self):
         lamb = self.sess.client('lambda', region_name='us-east-1')
-        yield f'Lambda {self.lambda_function_name[0:15]}... -- Deleting'
+        yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Deleting'
 
         # It takes some time after you disassociate a lambda function from a CloudFront distribution before you can
         # delete it successfully.
         deleted = False
         for i in range(30):
             try:
-                yield f'Lambda {self.lambda_function_name[0:15]}... -- Deleting (attempt {i}, this may' \
+                yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Deleting ({i}, this may ' \
                       f'take a while)'
                 lamb.delete_function(FunctionName=self.lambda_function_name)
                 deleted = True
@@ -240,7 +238,7 @@ class CloudFront:
             print('[ERROR] Failed to delete lambda function {}. This happens when Lambda@Edge functions have been in '
                   'use recently on a CloudFront distribution. Try removing this in an hour or so it should work.')
 
-        yield f'Lambda {self.lambda_function_name[0:15]}... -- Deleted'
+        yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Deleted'
 
     def create_distribution(self, lambda_arn):
         yield 'Distribution -- Creating'
@@ -278,102 +276,109 @@ class CloudFront:
             )
             policy_id = req_policy_resp['OriginRequestPolicy']['Id']
 
-        try:
-            resp = client.create_distribution_with_tags(
-                DistributionConfigWithTags={
-                    'DistributionConfig': {
-                        'CallerReference': str(time()),
-                        'Origins': {
-                            'Quantity': 1,
-                            'Items': [
-                                {
-                                    'Id': 'default',
-                                    'DomainName': self.target,
-                                    'CustomOriginConfig': {
-                                        'HTTPPort': 80,
-                                        'HTTPSPort': 443,
-                                        'OriginProtocolPolicy': 'http-only',
-                                        # TODO: Add option for this | 'match-viewer' | 'https-only',
-                                        'OriginSslProtocols': {
-                                            'Quantity': 4,
-                                            'Items': [
-                                                'SSLv3',
-                                                'TLSv1',
-                                                'TLSv1.1',
-                                                'TLSv1.2',
-                                            ]
-                                        },
-                                    },
-                                    'OriginShield': {
-                                        'Enabled': False,
-                                    }
-                                },
-                            ]
-                        },
-                        'DefaultCacheBehavior': {
-                            'TargetOriginId': 'default',
-                            'ViewerProtocolPolicy': 'allow-all',
-                            'AllowedMethods': {
-                                'Quantity': 7,
-                                'Items': [
-                                    'GET',
-                                    'HEAD',
-                                    'POST',
-                                    'PUT',
-                                    'PATCH',
-                                    'OPTIONS',
-                                    'DELETE',
-                                ],
-                                'CachedMethods': {
-                                    'Quantity': 2,
-                                    'Items': [
-                                        'GET',
-                                        'HEAD',
-                                    ]
-                                }
-                            },
-                            'Compress': False,
-                            'LambdaFunctionAssociations': {
+        resp = None
+        i = 1
+        while not resp:
+            try:
+                yield f'Distribution -- Creating ({i})'
+                resp = client.create_distribution_with_tags(
+                    DistributionConfigWithTags={
+                        'DistributionConfig': {
+                            'CallerReference': str(time()),
+                            'Origins': {
                                 'Quantity': 1,
                                 'Items': [
                                     {
-                                        'LambdaFunctionARN': lambda_arn,
-                                        'EventType': 'origin-request',
-                                        'IncludeBody': False,
-                                    }
+                                        'Id': 'default',
+                                        'DomainName': self.target,
+                                        'CustomOriginConfig': {
+                                            'HTTPPort': 80,
+                                            'HTTPSPort': 443,
+                                            'OriginProtocolPolicy': 'http-only',
+                                            # TODO: Add option for this | 'match-viewer' | 'https-only',
+                                            'OriginSslProtocols': {
+                                                'Quantity': 4,
+                                                'Items': [
+                                                    'SSLv3',
+                                                    'TLSv1',
+                                                    'TLSv1.1',
+                                                    'TLSv1.2',
+                                                ]
+                                            },
+                                        },
+                                        'OriginShield': {
+                                            'Enabled': False,
+                                        }
+                                    },
                                 ]
                             },
-                            'CachePolicyId': '4135ea2d-6df8-44a3-9df3-4b5a84be39ad',
-                            'OriginRequestPolicyId': policy_id,
-                        },
-                        'CacheBehaviors': {
-                            'Quantity': 0,
-                        },
-                        'Comment': 'cdn-proxy distribution for {}'.format(self.target),
-                        'PriceClass': 'PriceClass_100',
-                        'Enabled': True,
-                        'ViewerCertificate': {
-                            'CloudFrontDefaultCertificate': True,
-                            'MinimumProtocolVersion': 'TLSv1.2_2018',
-                        },
-                        'HttpVersion': 'http1.1',
-                        'IsIPV6Enabled': False,
-                    },
-                    'Tags': {
-                        'Items': [
-                            {
-                                'Key': 'cdn-proxy-target',
-                                'Value': self.target,
+                            'DefaultCacheBehavior': {
+                                'TargetOriginId': 'default',
+                                'ViewerProtocolPolicy': 'allow-all',
+                                'AllowedMethods': {
+                                    'Quantity': 7,
+                                    'Items': [
+                                        'GET',
+                                        'HEAD',
+                                        'POST',
+                                        'PUT',
+                                        'PATCH',
+                                        'OPTIONS',
+                                        'DELETE',
+                                    ],
+                                    'CachedMethods': {
+                                        'Quantity': 2,
+                                        'Items': [
+                                            'GET',
+                                            'HEAD',
+                                        ]
+                                    }
+                                },
+                                'Compress': False,
+                                'LambdaFunctionAssociations': {
+                                    'Quantity': 1,
+                                    'Items': [
+                                        {
+                                            'LambdaFunctionARN': lambda_arn,
+                                            'EventType': 'origin-request',
+                                            'IncludeBody': False,
+                                        }
+                                    ]
+                                },
+                                'CachePolicyId': '4135ea2d-6df8-44a3-9df3-4b5a84be39ad',
+                                'OriginRequestPolicyId': policy_id,
                             },
-                        ]
+                            'CacheBehaviors': {
+                                'Quantity': 0,
+                            },
+                            'Comment': 'cdn-proxy distribution for {}'.format(self.target),
+                            'PriceClass': 'PriceClass_100',
+                            'Enabled': True,
+                            'ViewerCertificate': {
+                                'CloudFrontDefaultCertificate': True,
+                                'MinimumProtocolVersion': 'TLSv1.2_2018',
+                            },
+                            'HttpVersion': 'http1.1',
+                            'IsIPV6Enabled': False,
+                        },
+                        'Tags': {
+                            'Items': [
+                                {
+                                    'Key': 'cdn-proxy-target',
+                                    'Value': self.target,
+                                },
+                            ]
+                        }
                     }
-                }
-            )
-        except botocore.exceptions.ClientError as e:
-            if e.response['Error']['Code'] == 'DistributionAlreadyExists':
-                raise CdnProxyException('A distribution for the specified target already exists.')
-            else:
-                raise e
+                )
+            except botocore.exceptions.ClientError as e:
+                if e.response['Error']['Code'] == 'DistributionAlreadyExists':
+                    raise CdnProxyException('A distribution for the specified target already exists.')
+                # This seems to happen on the first try occasionally.
+                elif e.response['Error']['Code'] != 'InvalidLambdaFunctionAssociation':
+                    raise e
+                i += 1
+                sleep(10)
         self.distribution_id = resp['Distribution']['Id']
         self.domain_name = resp['Distribution']['DomainName']
         yield f'Distribution {self.distribution_id} -- Created (but not propagated)'
