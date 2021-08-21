@@ -1,6 +1,6 @@
 # CDN Proxy
 
-This tool can be used by web app pentesters to create a copy of the targeted website with CDN and WAF restrictions
+A tool that can be used by web app pentesters to create a copy of the targeted website with CDN and WAF restrictions
 disabled.
 
 ## Table of Contents
