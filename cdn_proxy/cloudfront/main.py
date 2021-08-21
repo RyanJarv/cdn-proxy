@@ -11,12 +11,14 @@ from cdn_proxy.lib import CdnProxyException
 
 
 class CloudFront:
-    def __init__(self, sess, target, x_forwarded_for=None):
+    def __init__(self, sess, target, host=None, x_forwarded_for=None):
         self.sess = sess
         self.target = target
+        self.host = host or target
         self.x_forwarded_for = x_forwarded_for
-        self.lambda_role_name = 'cdn-bypass-lambda-execution-{}'.format(target.replace('.', '-'))
-        self.lambda_function_name = 'cdn-bypass-lambda-request-{}'.format(target.replace('.', '-'))
+        # Role names must be under 64 characters.
+        self.lambda_role_name = 'cdn-proxy-{}'.format(target.replace('.', '-')[0:53])
+        self.lambda_function_name = 'cdn-proxy-{}'.format(target.replace('.', '-')[0:53])
         self.lambda_arn = None
         self.lambda_role_arn = None
         self.distribution_id = None
@@ -59,13 +61,13 @@ class CloudFront:
                     yield item['Value'], dist['Id']
 
     def create_lambda_role(self):
-        yield f'Lambda@Edge IAM Role {self.lambda_role_name} -- Creating'
+        yield f'Lambda Role {self.lambda_role_name[0:15]}... -- Creating'
         iam = self.sess.client('iam', region_name='us-east-1')
 
         try:
             resp = iam.get_role(RoleName=self.lambda_role_name)
             self.lambda_role_arn = resp['Role']['Arn']
-            yield f'Lambda@Edge IAM Role {self.lambda_role_name} -- Already Exists'
+            yield f'IAM Role {self.lambda_role_name} -- Already Exists'
             return
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] != 'NoSuchEntity':
@@ -91,7 +93,7 @@ class CloudFront:
             Description='Execution roles for lambdas created by the cdn-bypass burp plugin.',
         )
 
-        yield f'Lambda@Edge IAM Role {self.lambda_role_name} -- Adding Policy'
+        yield f'IAM Role {self.lambda_role_name} -- Adding Policy'
         iam.put_role_policy(
             RoleName=self.lambda_role_name,
             PolicyName='basic-execution',
@@ -117,10 +119,10 @@ class CloudFront:
             }}'''.format(self.lambda_function_name)
         )
         self.lambda_role_arn = resp['Role']['Arn']
-        yield f'Lambda@Edge IAM Role {self.lambda_role_name} -- Created'
+        yield f'IAM Role {self.lambda_role_name} -- Created'
 
     def delete_lambda_role(self):
-        yield f'Lambda@Edge IAM Role {self.lambda_role_name} -- Deleting'
+        yield f'IAM Role {self.lambda_role_name} -- Deleting'
         iam = self.sess.client('iam', region_name='us-east-1')
 
         iam.delete_role_policy(RoleName=self.lambda_role_name, PolicyName='basic-execution')
@@ -131,19 +133,19 @@ class CloudFront:
             if e.response['Error']['Code'] != 'NoSuchEntity':
                 raise e
 
-        yield f'Lambda@Edge IAM Role {self.lambda_role_name} -- Deleted'
+        yield f'IAM Role {self.lambda_role_name} -- Deleted'
 
     def create_function(self, lambda_role_arn):
-        yield f'Lambda@Edge Function {self.lambda_function_name} -- Creating package'
+        yield f'Lambda {self.lambda_function_name[0:15]}... -- Creating'
         main = Path(__file__).parents[1]/'lambdas/request/main.py'
         with open(main, 'r') as f:
             source_code = f.read()
 
         # Lambda@Edge functions can't use environment variables so set this as a global.
-        source_code = re.sub(r'HOST\s+=.*$', 'HOST = "{}"'.format(self.target), source_code)
+        source_code = re.sub(r'HOST\s+=.*', 'HOST = "{}"'.format(self.host), source_code)
 
         if self.x_forwarded_for:
-            source_code = re.sub(r'X_FORWARDED_FOR\s+=.*$', 'X_FORWARDED_FOR = "{}"'.format(self.x_forwarded_for),
+            source_code = re.sub(r'X_FORWARDED_FOR\s+=.*', 'X_FORWARDED_FOR = "{}"'.format(self.x_forwarded_for),
                                  source_code)
 
         zip = io.BytesIO()
@@ -153,56 +155,75 @@ class CloudFront:
 
         lamb = self.sess.client('lambda', region_name='us-east-1')
 
+        exists = False
         try:
-            resp = lamb.get_function(FunctionName=self.lambda_function_name)
-            latest = self.get_latest_lambda_version(resp['Configuration']['FunctionName'])
-            self.lambda_arn = "{}:{}".format(resp['Configuration']['FunctionArn'], latest)
-            return
+            lamb.get_function(FunctionName=self.lambda_function_name)
+            exists = True
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] != 'ResourceNotFoundException':
                 raise e
 
-        yield f'Lambda@Edge Function {self.lambda_function_name} -- Creating function'
-        resp = lamb.create_function(
-            FunctionName=self.lambda_function_name,
-            Runtime='python3.8',
-            Role=lambda_role_arn,
-            Handler='main.lambda_handler',
-            Code={
-                'ZipFile': zip.read(),
-            },
-            Description='Request handler for the cdn-bypass Burp plugin.',
-            Timeout=30,
-            MemorySize=128,
-            Publish=False,
-            PackageType='Zip',
-        )
+        if exists:
+            resp = lamb.update_function_code(
+                FunctionName=self.lambda_function_name,
+                ZipFile=zip.read(),
+                Publish=True,
+            )
+        else:
+            i = 1
+            while True:
+                yield f'Lambda {self.lambda_function_name[0:15]}... -- Creating function (attempt {i})'
+                try:
+                    resp = lamb.create_function(
+                        FunctionName=self.lambda_function_name,
+                        Runtime='python3.8',
+                        Role=lambda_role_arn,
+                        Handler='main.lambda_handler',
+                        Code={
+                            'ZipFile': zip.read(),
+                        },
+                        Description='Request handler for the cdn-bypass Burp plugin.',
+                        Timeout=30,
+                        MemorySize=128,
+                        Publish=False,
+                        PackageType='Zip',
+                    )
+                    break
+                except botocore.exceptions.ClientError as e:
+                    # It seems this sometimes happens if the function is created to soon after creating the role.
+                    if e.response['Error']['Code'] == 'InvalidParameterValueException':
+                        import pdb; pdb.set_trace()
+                        pass
+                    else:
+                        raise e
+                i += 1
+                sleep(5)
 
-        yield f'Lambda@Edge Function {self.lambda_function_name} -- Adding replicator permissions'
-        lamb.add_permission(
-            StatementId='replicator',
-            FunctionName=resp['FunctionName'],
-            Principal='replicator.lambda.amazonaws.com',
-            Action='lambda:GetFunction',
-        )
-        yield f'Lambda@Edge Function {self.lambda_function_name} -- Publishing latest version'
+            yield f'Lambda {self.lambda_function_name[0:15]}... -- Adding permissions'
+            lamb.add_permission(
+                StatementId='replicator',
+                FunctionName=resp['FunctionName'],
+                Principal='replicator.lambda.amazonaws.com',
+                Action='lambda:GetFunction',
+            )
+            yield f'Lambda {self.lambda_function_name[0:15]}... -- Publishing'
+
         lamb.publish_version(FunctionName=resp['FunctionName'])
-
-        latest = self.get_latest_lambda_version(resp['FunctionName'])
-        self.lambda_arn = "{}:{}".format(resp['FunctionArn'], latest)
+        self.lambda_arn = resp['FunctionArn']
 
     def delete_function(self):
         lamb = self.sess.client('lambda', region_name='us-east-1')
-        yield f'Lambda@Edge Function {self.lambda_function_name} -- Deleting'
+        yield f'Lambda {self.lambda_function_name[0:15]}... -- Deleting'
 
         # It takes some time after you disassociate a lambda function from a CloudFront distribution before you can
         # delete it successfully.
-        while True:
-            i = 1
+        deleted = False
+        for i in range(30):
             try:
-                yield f'Lambda@Edge Function {self.lambda_function_name} -- Deleting (attempt {i}, this may take a ' \
-                      'while)'
+                yield f'Lambda {self.lambda_function_name[0:15]}... -- Deleting (attempt {i}, this may' \
+                      f'take a while)'
                 lamb.delete_function(FunctionName=self.lambda_function_name)
+                deleted = True
                 break
             except botocore.exceptions.ClientError as e:
                 if e.response['Error']['Code'] == 'InvalidParameterValueException':
@@ -212,15 +233,51 @@ class CloudFront:
                     return
                 else:
                     raise e
-
             i += 1
-            sleep(10)
+            sleep(30)
 
-        yield f'Lambda@Edge Function {self.lambda_function_name} -- Deleted'
+        if not deleted:
+            print('[ERROR] Failed to delete lambda function {}. This happens when Lambda@Edge functions have been in '
+                  'use recently on a CloudFront distribution. Try removing this in an hour or so it should work.')
+
+        yield f'Lambda {self.lambda_function_name[0:15]}... -- Deleted'
 
     def create_distribution(self, lambda_arn):
-        yield 'CloudFront Distribution -- Creating'
+        yield 'Distribution -- Creating'
         client = self.sess.client('cloudfront', region_name='us-east-1')
+
+        policy_name = 'cdn-proxy-{}'.format(self.target.replace('.', '-'))
+        policy_id = None
+
+        resp = client.list_origin_request_policies(Type='custom')
+        for policy in resp['OriginRequestPolicyList']['Items']:
+            if policy['OriginRequestPolicy']['OriginRequestPolicyConfig']['Name'] == policy_name:
+                policy_id = policy['OriginRequestPolicy']['Id']
+
+        if not policy_id:
+            req_policy_resp = client.create_origin_request_policy(
+                OriginRequestPolicyConfig={
+                    'Comment': 'Allow all w/ proto',
+                    'Name': policy_name,
+                    'HeadersConfig': {
+                        'HeaderBehavior': 'allViewerAndWhitelistCloudFront',
+                        'Headers': {
+                            'Quantity': 1,
+                            'Items': [
+                                'CloudFront-Forwarded-Proto',
+                            ]
+                        }
+                    },
+                    'CookiesConfig': {
+                        'CookieBehavior': 'all',
+                    },
+                    'QueryStringsConfig': {
+                        'QueryStringBehavior': 'all',
+                    }
+                }
+            )
+            policy_id = req_policy_resp['OriginRequestPolicy']['Id']
+
         try:
             resp = client.create_distribution_with_tags(
                 DistributionConfigWithTags={
@@ -283,16 +340,11 @@ class CloudFront:
                                         'LambdaFunctionARN': lambda_arn,
                                         'EventType': 'origin-request',
                                         'IncludeBody': False,
-                                    },
-                                    # Rewrite all links?
-                                    # {
-                                    #     'LambdaFunctionARN': ...,
-                                    #     'EventType': 'origin-response',
-                                    #     'IncludeBody': True | False
-                                    # },
+                                    }
                                 ]
                             },
                             'CachePolicyId': '4135ea2d-6df8-44a3-9df3-4b5a84be39ad',
+                            'OriginRequestPolicyId': policy_id,
                         },
                         'CacheBehaviors': {
                             'Quantity': 0,
@@ -324,17 +376,17 @@ class CloudFront:
                 raise e
         self.distribution_id = resp['Distribution']['Id']
         self.domain_name = resp['Distribution']['DomainName']
-        yield f'CloudFront Distribution {self.distribution_id} -- Created (but not propagated)'
+        yield f'Distribution {self.distribution_id} -- Created (but not propagated)'
 
     def wait_for_distribution(self):
-        yield 'CloudFront Distribution -- Waiting for propagation (this may take a while)'
+        yield 'Distribution -- Waiting for propagation (this may take a while)'
         client = self.sess.client('cloudfront')
         waiter = client.get_waiter('distribution_deployed')
         waiter.wait(Id=self.distribution_id)
-        yield f'CloudFront Distribution {self.distribution_id} -- Created'
+        yield f'Distribution {self.distribution_id} -- Created'
 
     def delete_distribution(self, dist_id):
-        yield f'CloudFront Distribution {dist_id} -- Getting current config'
+        yield f'Distribution {dist_id} -- Getting current config'
         client = self.sess.client('cloudfront', region_name='us-east-1')
         try:
             resp = client.get_distribution_config(Id=dist_id)
@@ -348,15 +400,15 @@ class CloudFront:
         config['DefaultCacheBehavior']['LambdaFunctionAssociations'] = {
             "Quantity": 0,
         }
-        yield f'CloudFront Distribution {dist_id} -- Disabling'
+        yield f'Distribution {dist_id} -- Disabling'
         client.update_distribution(Id=dist_id, DistributionConfig=config, IfMatch=resp['ETag'])
-        yield f'CloudFront Distribution {dist_id} -- Waiting for propagation (this may take a while)'
+        yield f'Distribution {dist_id} -- Waiting for propagation (this may take a while)'
         waiter = client.get_waiter('distribution_deployed')
         waiter.wait(Id=dist_id)
-        yield f'CloudFront Distribution {dist_id} -- Deleting'
+        yield f'Distribution {dist_id} -- Deleting'
         resp = client.get_distribution_config(Id=dist_id)
         client.delete_distribution(Id=dist_id, IfMatch=resp['ETag'])
-        yield f'CloudFront Distribution {dist_id} -- Deleted'
+        yield f'Distribution {dist_id} -- Deleted'
 
     # Apparently the latest version isn't always 1, even if we just created the function.
     def get_latest_lambda_version(self, lambda_name):
