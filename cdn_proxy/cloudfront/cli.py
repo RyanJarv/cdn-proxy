@@ -20,7 +20,10 @@ def session(
 
 
 @app.command()
-def create(target: str = typer.Argument(..., help='Optional device name to limit snapshots to.')):
+def create(
+        host: str = typer.Option(None, help='Value to set the Host header to set on requests to the origin.'),
+        target: str = typer.Argument(..., help='Optional device name to limit snapshots to.'),
+):
     """
     Create a new CloudFront distribution and Lambda@Edge function targeting the specified origin.
 
@@ -30,11 +33,11 @@ def create(target: str = typer.Argument(..., help='Optional device name to limit
     The X-Forwarded-For header will be also set to a random IP address by the Lambda@Edge function.
     """
 
-    cloudfront = CloudFront(sess, target)
+    cloudfront = CloudFront(sess, target, host)
     with typer.progressbar(cloudfront.create(), length=20, label=f"Creating {target}") as progress:
         for update in progress:
-            progress.update(1)
             progress.label = typer.style(update, fg=typer.colors.CYAN)
+            progress.update(1)
     typer.echo(f"The new distribution is accessible at {cloudfront.domain_name}", color=typer.colors.GREEN)
 
 
@@ -49,8 +52,8 @@ def delete(target: str = typer.Argument(..., help='Optional device name to limit
     cloudfront = CloudFront(sess, target)
     with typer.progressbar(cloudfront.delete(), length=20, label=f"Destroying {id}") as progress:
         for update in progress:
-            progress.update(1)
             progress.label = typer.style(update, fg=typer.colors.CYAN)
+            progress.update(1)
 
 
 @app.command(name="list")

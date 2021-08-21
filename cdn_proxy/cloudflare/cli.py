@@ -21,7 +21,7 @@ def session(
 
 
 @app.command()
-def create(target: str = typer.Argument(..., help='Optional device name to limit snapshots to.')):
+def create(target: str = typer.Argument(..., help='The origin to target, can be an IP or hostname.')):
     """
     Create a new CloudFront distribution and Lambda@Edge function targeting the specified origin.
 
@@ -33,8 +33,8 @@ def create(target: str = typer.Argument(..., help='Optional device name to limit
 
     with typer.progressbar(cloudflare.create(target), length=10, label=f"Creating {target}") as progress:
         for update in progress:
-            progress.update(1)
             progress.label = update
+            progress.update(1)
     typer.echo(f"Created distribution {id}", color=typer.colors.GREEN)
 
 
@@ -48,8 +48,8 @@ def delete(id: str = typer.Argument(..., help='Optional device name to limit sna
 
     with typer.progressbar(cloudflare.delete(id), length=5, label=f"Destroying {id}") as progress:
         for update in progress:
-            progress.update(1)
             progress.label = update
+            progress.update(1)
 
 
 @app.command()
