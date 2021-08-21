@@ -1,6 +1,6 @@
 # CDN Proxy
 
-This tool can be used by web app pentesters to create a copy of the targeted website with CDN and WAF restrictions
+A tool that can be used by web app pentesters to create a copy of the targeted website with CDN and WAF restrictions
 disabled.
 
 ## Table of Contents
@@ -24,6 +24,8 @@ same origin. Security protections on this second account can be disabled, sidest
 account in a similar way to the original issue.
 
 ![CDN Proxy Diagram](./docs/cdn-proxy-diagram.png)
+
+https://user-images.githubusercontent.com/4079939/130310987-3ad7e7b4-db7f-4a6e-b511-14ef7a9dbab4.mov
 
 ## Prerequisites
 
