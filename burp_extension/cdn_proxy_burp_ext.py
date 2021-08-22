@@ -121,12 +121,12 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
         self.main = JPanel()
         self.main.setLayout(BoxLayout(self.main, BoxLayout.Y_AXIS))
 
-        self.target_host_panel = JPanel()
-        self.main.add(self.target_host_panel)
-        self.target_host_panel.setLayout(BoxLayout(self.target_host_panel, BoxLayout.X_AXIS))
-        self.target_host_panel.add(JLabel('Target host: '))
-        self.proxy_host = JTextField('example.com', 25)
-        self.target_host_panel.add(self.proxy_host)
+        self.proxy_host_panel = JPanel()
+        self.main.add(self.proxy_host_panel)
+        self.proxy_host_panel.setLayout(BoxLayout(self.proxy_host_panel, BoxLayout.X_AXIS))
+        self.proxy_host_panel.add(JLabel('Proxy CDN Domain: '))
+        self.proxy_host = JTextField('<dist id>.cloudfront.com', 25)
+        self.proxy_host_panel.add(self.proxy_host)
 
         self.buttons_panel = JPanel()
         self.main.add(self.buttons_panel)
