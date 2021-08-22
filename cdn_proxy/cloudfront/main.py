@@ -1,34 +1,63 @@
+import asyncio
+import enum
 import io
 import os
 import re
 import zipfile
+from dataclasses import dataclass
 from pathlib import Path
 from time import time, sleep
+from typing import Optional
 
+import aiohttp
+import aiohttp.client_exceptions
 import botocore.exceptions
 
 from cdn_proxy.lib import CdnProxyException, trim
 
+@dataclass
+class CloudFrontProxy:
+    id: str
+    target: str
+    domain: str
+
 
 class CloudFront:
-    def __init__(self, sess, target, host=None, x_forwarded_for=None):
+    def __init__(self, sess, target=None, host=None, x_forwarded_for=None):
         self.sess = sess
         self.target = target
         self.host = host or target
         self.x_forwarded_for = x_forwarded_for
         # Role names must be under 64 characters.
-        self.lambda_role_name = 'cdn-proxy-{}'.format(target.replace('.', '-')[0:53])
-        self.lambda_function_name = 'cdn-proxy-{}'.format(target.replace('.', '-')[0:53])
+        if target:
+            self.lambda_role_name = 'cdn-proxy-{}'.format(target.replace('.', '-')[0:53])
+            self.lambda_function_name = 'cdn-proxy-{}'.format(target.replace('.', '-')[0:53])
         self.lambda_arn = None
         self.lambda_role_arn = None
         self.distribution_id = None
         self.domain_name = None
 
+        try:
+            self.distribution: Optional[CloudFrontProxy] = list(self.list(sess))[0]
+        except IndexError:
+            self.distribution: Optional[CloudFrontProxy] = None
+
     def create(self):
+        for proxy in self.list(self.sess):
+            if proxy.target == self.target:
+                raise CdnProxyException(f'A deployment for target {self.target} already exists. It can be accessed '
+                                        f'through the CloudFront distribution {proxy.id} with a URL of'
+                                        f'https://{proxy.domain} or http://{proxy.domain}.')
+
         yield from self.create_lambda_role()
         yield from self.create_function(self.lambda_role_arn)
         yield from self.create_distribution(self.lambda_arn)
         yield from self.wait_for_distribution()
+        yield f'Deployment for {trim(self.target, 25)}... finished.'
+
+    def update(self):
+        yield from self.create_lambda_role()
+        yield from self.create_function(self.lambda_role_arn)
         yield f'Deployment for {trim(self.target, 25)}... finished.'
 
     def delete(self):
@@ -58,7 +87,11 @@ class CloudFront:
             tags_resp = client.list_tags_for_resource(Resource=dist['ARN'])
             for item in tags_resp['Tags']['Items']:
                 if item['Key'] == 'cdn-proxy-target':
-                    yield item['Value'], dist['Id']
+                    yield CloudFrontProxy(
+                        id=dist['Id'],
+                        target=item['Value'],
+                        domain=dist['DomainName'],
+                    )
 
     def create_lambda_role(self):
         yield f'Lambda Role {trim(self.lambda_role_name, 15)}... -- Creating'
@@ -97,6 +130,7 @@ class CloudFront:
         iam.put_role_policy(
             RoleName=self.lambda_role_name,
             PolicyName='basic-execution',
+            # TODO: fix resource
             PolicyDocument='''{{
                 "Version": "2012-10-17",
                 "Statement": [
@@ -113,6 +147,7 @@ class CloudFront:
                         ],
                         "Resource": [
                             "arn:aws:logs:*:*:log-group:/aws/lambda/{}:*"
+                            "*"
                         ]
                     }}
                 ]
@@ -142,7 +177,7 @@ class CloudFront:
             source_code = f.read()
 
         # Lambda@Edge functions can't use environment variables so set this as a global.
-        source_code = re.sub(r'HOST\s+=.*', 'HOST = "{}"'.format(self.host), source_code)
+        source_code = re.sub(r'DEFAULT_HOST\s+=.*', 'DEFAULT_HOST = "{}"'.format(self.host), source_code)
 
         if self.x_forwarded_for:
             source_code = re.sub(r'X_FORWARDED_FOR\s+=.*', 'X_FORWARDED_FOR = "{}"'.format(self.x_forwarded_for),
@@ -213,32 +248,43 @@ class CloudFront:
         lamb = self.sess.client('lambda', region_name='us-east-1')
         yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Deleting'
 
-        # It takes some time after you disassociate a lambda function from a CloudFront distribution before you can
-        # delete it successfully.
-        deleted = False
-        for i in range(30):
-            try:
-                yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Deleting ({i}, this may ' \
-                      f'take a while)'
-                lamb.delete_function(FunctionName=self.lambda_function_name)
-                deleted = True
-                break
-            except botocore.exceptions.ClientError as e:
-                if e.response['Error']['Code'] == 'InvalidParameterValueException':
-                    pass
-                elif e.response['Error']['Code'] == 'ResourceNotFoundException':
-                    print("\n[ERROR] Lambda function {} not found.".format(self.lambda_function_name))
-                    return
-                else:
-                    raise e
-            i += 1
-            sleep(30)
+        # It seems deleting the versions first gets this process unstuck sometimes.
+        versions = self.get_lambda_versions(self.lambda_function_name)
 
-        if not deleted:
-            print('[ERROR] Failed to delete lambda function {}. This happens when Lambda@Edge functions have been in '
-                  'use recently on a CloudFront distribution. Try removing this in an hour or so it should work.')
+        # Append None to delete the main function.
+        versions.append(None)
+
+        for ver in versions:
+            # It takes some time after you disassociate a lambda function from a CloudFront distribution before you can
+            # delete it successfully.
+            deleted = False
+            for i in range(30):
+                try:
+                    yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Deleting ({i}, this may ' \
+                          f'take a while)'
+                    lamb.delete_function(FunctionName=self.lambda_function_name, Qualifier=ver)
+                    deleted = True
+                    break
+                except botocore.exceptions.ClientError as e:
+                    if e.response['Error']['Code'] == 'InvalidParameterValueException':
+                        pass
+                    elif e.response['Error']['Code'] == 'ResourceNotFoundException':
+                        print("\n[ERROR] Lambda function {} not found.".format(self.lambda_function_name))
+                        return
+                    else:
+                        raise e
+                i += 1
+                sleep(30)
+
+            if not deleted:
+                print('[ERROR] Failed to delete lambda function {}. This happens when Lambda@Edge functions have been '
+                      'in use recently on a CloudFront distribution. Try removing this in an hour or so it should '
+                      'work.')
 
         yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Deleted'
+
+    def update_distribution(self, lambda_arn):
+        pass
 
     def create_distribution(self, lambda_arn):
         yield 'Distribution -- Creating'
@@ -294,7 +340,7 @@ class CloudFront:
                                         'CustomOriginConfig': {
                                             'HTTPPort': 80,
                                             'HTTPSPort': 443,
-                                            'OriginProtocolPolicy': 'http-only',
+                                            'OriginProtocolPolicy': 'match-viewer',
                                             # TODO: Add option for this | 'match-viewer' | 'https-only',
                                             'OriginSslProtocols': {
                                                 'Quantity': 4,
@@ -305,7 +351,10 @@ class CloudFront:
                                                     'TLSv1.2',
                                                 ]
                                             },
+                                            'OriginReadTimeout': 30,  # TODO: Make this configurable.
                                         },
+                                        'ConnectionAttempts': 1,  # TODO: Make this configurable.
+                                        'ConnectionTimeout': 10,  # TODO: Make this configurable.
                                         'OriginShield': {
                                             'Enabled': False,
                                         }
@@ -417,8 +466,115 @@ class CloudFront:
 
     # Apparently the latest version isn't always 1, even if we just created the function.
     def get_latest_lambda_version(self, lambda_name):
+        return max(self.get_lambda_versions(lambda_name))
+
+    def get_lambda_versions(self, lambda_name):
         lamb = self.sess.client('lambda', region_name='us-east-1')
-        resp = lamb.list_versions_by_function(FunctionName=lambda_name)
+        resp = lamb.list_versions_by_function(FunctionName=self.lambda_function_name)
         versions = [v['Version'] for v in resp['Versions']]
         versions.remove('$LATEST')
-        return max(versions)
+        return versions
+
+
+class CloudFrontScanner(CloudFront):
+    def __init__(self, *args, max: int = 20, **kwargs):
+        super().__init__(*args, **kwargs)
+        self._session: 'aiohttp.ClientSession'
+        sem = asyncio.Semaphore(20)
+
+    async def __aenter__(self):
+        conn = aiohttp.TCPConnector(verify_ssl=False)
+        self._session: 'aiohttp.ClientSession' = aiohttp.ClientSession(connector=conn)
+        return self
+
+    async def __aexit__(self, *err):
+        await self._session.close()
+        self._session: 'aiohttp.ClientSession' = None  # noqa
+
+    async def scan(self, origin: str, host: str = None) -> 'ScanResult':
+        result = await self._scan(host, origin)
+
+        if result.OriginState == ServiceState.Closed and \
+                (result.ProxyState in [ServiceState.Open, ServiceState.OpenServFail]):
+            print(f"{str(origin)} -- {result.ProxyState.value}/{result.OriginState.value} -- Proxy Bypass Found")
+        else:
+            print(f"{str(origin)} -- {result.ProxyState.value}/{result.OriginState.value}")
+
+    async def _scan(self, host, origin):
+        proxy_hdrs = {'Cdn-Proxy-Origin': origin}
+        if host:
+            proxy_hdrs['Cdn-Proxy-Host'] = host
+
+        origin_hdrs = {}
+        if origin_hdrs:
+            origin_hdrs['Host'] = host
+
+        proxy_resp = await self._fetch(self.distribution.domain, proxy_hdrs)
+        orig_resp = await self._fetch(origin, origin_hdrs)
+
+        result = ScanResult(
+            ProxyState=await self._check_status(proxy_resp),
+            OriginState=await self._check_status(orig_resp),
+        )
+        return result
+
+    async def _fetch(self, server, hdrs={}):
+        try:
+            async with self._session.get(f"https://{server}", headers=hdrs) as resp:
+                proxy_resp = resp
+            return proxy_resp
+        except aiohttp.client_exceptions.ServerDisconnectedError:
+            return RequestError.Disconnected
+        except (
+                aiohttp.client_exceptions.ClientConnectorError,
+                aiohttp.client_exceptions.ClientOSError,
+        ):
+            return RequestError.ClientError
+        except asyncio.exceptions.TimeoutError:
+            return RequestError.Timeout
+
+    async def _check_status(self, resp):
+        state = None
+        if type(resp) is RequestError:
+            if resp == RequestError.ClientError:
+                state = ServiceState.ClientFailed
+            elif resp == RequestError.Timeout:
+                state = ServiceState.Filtered
+            elif resp == RequestError.Disconnected:
+                state = ServiceState.OpenServFail
+            else:
+                import pdb; pdb.set_trace()
+        elif 200 <= resp.status <= 499:
+            state = ServiceState.Open
+        elif resp.status == 500:
+            state = ServiceState.OpenServFail
+        elif resp.status in [502, 503]:
+            state = ServiceState.Closed
+        elif resp.status == 504:
+            state = ServiceState.Filtered
+        else:
+            import pdb; pdb.set_trace()
+
+        return state
+
+# TODO: Make sure https goes to https on the backend
+
+@dataclass
+class ScanResult:
+    ProxyState: 'ServiceState'
+    OriginState: 'ServiceState'
+
+
+class ServiceState(enum.Enum):
+    ClientFailed = "unknown (client failed)"
+    Open = "open"
+    OpenServFail = "open (server failed)"
+    Closed = "closed"
+    Filtered = "closed"
+
+
+class RequestError(enum.Enum):
+    Disconnected = 'Disconnected'
+    ClientError = 'ClientConnectorError'
+    Timeout = 'Timeout'
+
