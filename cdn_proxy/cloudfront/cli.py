@@ -108,15 +108,9 @@ def delete(target: str = typer.Argument(..., help='Optional device name to limit
             progress.update(1)
 
 
-@app.command(name="list")
-def list_distributions():
-    """
-    List CloudFront distributions IDs and targets created with cdn-proxy.
+def status():
+    """Get the status of the CloudFront deployment."""
 
-    Distributions created with cdn-proxy are marked by setting the cdn-proxy-target tag to the name of the target. This
-    command will only list distributions with this tag key.
-    """
-
-    for proxy in CloudFront.list(sess):
-        typer.echo(f"* Target: {typer.style(proxy.target, fg=typer.colors.CYAN)} DistributionID: "
-                   f"{proxy.id} ProxyUrl: {proxy.domain}")
+    proxy = CloudFront.status(sess)
+    typer.echo(f"* Target: {typer.style(proxy.target, fg=typer.colors.CYAN)} DistributionID: {proxy.id} "
+               f"ProxyUrl: {proxy.domain}")
