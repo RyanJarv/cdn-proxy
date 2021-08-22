@@ -5,7 +5,8 @@ import boto3
 
 import typer
 
-from cdn_proxy.cloudfront import CloudFront, CloudFrontScanner
+from cdn_proxy.cloudfront import CloudFront
+from cdn_proxy.cloudfront.scanner import CloudFrontScanner
 from cdn_proxy.lib import networks_to_hosts
 
 app = typer.Typer(name="cloudfront", help="Manage CloudFront distributions")
