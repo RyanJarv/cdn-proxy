@@ -5,10 +5,7 @@ import re
 import socket
 import json
 import struct
-
-# Lambda@Edge functions cannot have environment variables, so these get replaced at deploy time.
-DEFAULT_HOST = None
-X_FORWARDED_FOR = None
+from pathlib import Path
 
 
 class CDNProxyError(Exception):
@@ -25,23 +22,8 @@ def random_ip():
 
 
 def hostname_for_ip(ip: str):
-    try:
-        host = socket.gethostbyaddr(ip)[0]
-        resolved_ip = socket.gethostbyname(host)
-        if ip == resolved_ip:
-            return host
-        else:
-            raise CDNProxyError('Unable to resolve the IP provided in Cdn-Proxy-Origin to a hostname. '
-                                'Forward and reverse resolved IPs did not match. As a workaround you can specify a'
-                                'hostname that resolves to this IP address.')
-    except socket.herror:
-        raise CDNProxyError('Unable to resolve the IP provided in Cdn-Proxy-Origin to a hostname. '
-                            'Reverse ptr resolution failed. As a workaround you can specify a'
-                            'hostname that resolves to this IP address.')
-    except socket.gaierror:
-        raise CDNProxyError('Unable to resolve the IP provided in Cdn-Proxy-Origin to a hostname. '
-                            'Forward resolution of the resulting reverse ptr failed. As a workaround you can specify a'
-                            'hostname that resolves to this IP address.')
+    """Returns a sslip.io hostname that resolves to the given IP address."""
+    return f"{ip.replace('.', '-')}.sslip.io"
 
 
 def lambda_handler(event, context):
@@ -65,34 +47,34 @@ def lambda_handler(event, context):
 
 
 def main(headers, origin):
-    # Override default host if we find the Cdn-Proxy-Target header.
-    if len(headers.get('cdn-proxy-origin', [])) == 1:
-        value = headers['cdn-proxy-origin'][0]['value']
-        origin['domainName'] = value
-        if re.match(r'([0-9]{1,3}\.){3}[0-9]{1,3}', value):
-            origin['domainName'] = hostname_for_ip(value)
+    if len(headers.get('cdn-proxy-origin', [])) == 0:
+        help_html = Path('./help.html').read_text()
+        raise CDNProxyError(help_html)
 
-    # Override the default origin if we get the Cdn-Proxy-Origin header.
-    host = DEFAULT_HOST
-    if len(headers.get('cdn-proxy-origin', [])) == 1:
-        host = headers['cdn-proxy-origin'][0]['value']
+    target = headers['cdn-proxy-origin'][0]['value']
+    if re.match(r'([0-9]{1,3}\.){3}[0-9]{1,3}', target):
+        origin['domainName'] = hostname_for_ip(target)
+    else:
+        origin['domainName'] = target
+
+    # Set the origin if we get the Cdn-Proxy-Origin header. By default it is set to the value of Cdn-Proxy-Origin.
+    if len(headers.get('cdn-proxy-host', [])) == 1:
+        host = headers['cdn-proxy-host'][0]['value']
+    else:
+        host = target
+
     print(f'Setting Host to `{host}`.')
-    if not host:
-        raise UserWarning('Something went wrong, the global variable DEFAULT_HOST was not set during deploy and the '
-                          'request did not have the Cdn-Proxy-Host header set.')
     headers['host'] = [{
         "key": "Host",
         "value": host,
     }]
 
-    if X_FORWARDED_FOR:
-        forwarded_for = X_FORWARDED_FOR
-    else:
+    if len(headers.get('x-forwarded-for', [])) != 1:
         forwarded_for = random_ip()
-    print(f'Setting X-Forwarded-For to `{forwarded_for}`.')
+        print(f'Setting X-Forwarded-For to `{forwarded_for}`.')
+        headers['x-forwarded-for'] = [{
+            "key": "X-Forwarded-For",
+            "value": forwarded_for,
+        }]
 
-    headers['x-forwarded-for'] = [{
-        "key": "X-Forwarded-For",
-        "value": forwarded_for,
-    }]
     return headers, origin

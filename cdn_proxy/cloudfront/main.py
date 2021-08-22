@@ -1,71 +1,56 @@
-import asyncio
-import enum
 import io
-import os
-import re
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path
 from time import time, sleep
 from typing import Optional
 
-import aiohttp
-import aiohttp.client_exceptions
 import botocore.exceptions
 
 from cdn_proxy.lib import CdnProxyException, trim
 
+
 @dataclass
 class CloudFrontProxy:
     id: str
-    target: str
     domain: str
 
 
 class CloudFront:
-    def __init__(self, sess, target=None, host=None, x_forwarded_for=None):
+    def __init__(self, sess):
         self.sess = sess
-        self.target = target
-        self.host = host or target
-        self.x_forwarded_for = x_forwarded_for
         # Role names must be under 64 characters.
-        if target:
-            self.lambda_role_name = 'cdn-proxy-{}'.format(target.replace('.', '-')[0:53])
-            self.lambda_function_name = 'cdn-proxy-{}'.format(target.replace('.', '-')[0:53])
+        self.lambda_role_name = 'cdn-proxy-request'
+        self.lambda_function_name = 'cdn-proxy-request'
         self.lambda_arn = None
         self.lambda_role_arn = None
         self.distribution_id = None
         self.domain_name = None
 
         try:
-            self.distribution: Optional[CloudFrontProxy] = list(self.list(sess))[0]
+            self.distribution: Optional[CloudFrontProxy] = self.status(sess)
         except IndexError:
             self.distribution: Optional[CloudFrontProxy] = None
 
     def create(self):
-        for proxy in self.list(self.sess):
-            if proxy.target == self.target:
-                raise CdnProxyException(f'A deployment for target {self.target} already exists. It can be accessed '
-                                        f'through the CloudFront distribution {proxy.id} with a URL of'
-                                        f'https://{proxy.domain} or http://{proxy.domain}.')
+        proxy = self.status(self.sess)
+        if proxy:
+            raise CdnProxyException(f'A deployment already exists. It can be accessed through the CloudFront '
+                                    f'distribution {proxy.id} with a URL of https://{proxy.domain} or '
+                                    f'http://{proxy.domain}.')
 
-        yield from self.create_lambda_role()
+        yield from self.create_lambda_role(self.lambda_role_name, self.lambda_function_name)
         yield from self.create_function(self.lambda_role_arn)
         yield from self.create_distribution(self.lambda_arn)
         yield from self.wait_for_distribution()
-        yield f'Deployment for {trim(self.target, 25)}... finished.'
-
-    def update(self):
-        yield from self.create_lambda_role()
-        yield from self.create_function(self.lambda_role_arn)
-        yield f'Deployment for {trim(self.target, 25)}... finished.'
+        yield f'Deployment completed.'
 
     def delete(self):
         try:
-            dist_id = dict(self.__class__.list(self.sess))[self.target]
+            dist_id = self.__class__.status(self.sess).id
             yield from self.delete_distribution(dist_id)
         except KeyError:
-            print('\n[ERROR] No distribution found for target "{}"'.format(self.target))
+            print('\n[ERROR] No existing deployment found.')
 
         yield from self.delete_function()
 
@@ -73,41 +58,41 @@ class CloudFront:
             yield from self.delete_lambda_role()
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] == 'NoSuchEntity':
-                print('\n[ERROR] No IAM Role found for target "{}"'.format(self.target))
+                print('\n[ERROR] No existing IAM Role found')
             else:
                 raise e
 
-        yield f'Deployment for {trim(self.target, 25)}... deleted'
+        yield f'Deployment deleted'
 
     @staticmethod
-    def list(sess):
+    def status(sess) -> Optional[CloudFrontProxy]:
         client = sess.client('cloudfront')
         resp = client.list_distributions()
         for dist in resp['DistributionList']['Items']:
             tags_resp = client.list_tags_for_resource(Resource=dist['ARN'])
             for item in tags_resp['Tags']['Items']:
                 if item['Key'] == 'cdn-proxy-target':
-                    yield CloudFrontProxy(
+                    return CloudFrontProxy(
                         id=dist['Id'],
-                        target=item['Value'],
                         domain=dist['DomainName'],
                     )
+        return None
 
-    def create_lambda_role(self):
-        yield f'Lambda Role {trim(self.lambda_role_name, 15)}... -- Creating'
+    def create_lambda_role(self, role_name: str, lambda_name: str):
+        yield f'Lambda Role {trim(role_name, 15)}... -- Creating'
         iam = self.sess.client('iam', region_name='us-east-1')
 
         try:
-            resp = iam.get_role(RoleName=self.lambda_role_name)
+            resp = iam.get_role(RoleName=role_name)
             self.lambda_role_arn = resp['Role']['Arn']
-            yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Already Exists'
+            yield f'IAM Role {trim(role_name, 15)}... -- Already Exists'
             return
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] != 'NoSuchEntity':
                 raise e
 
         resp = iam.create_role(
-            RoleName=self.lambda_role_name,
+            RoleName=role_name,
             AssumeRolePolicyDocument='''{
               "Version": "2012-10-17",
               "Statement": [
@@ -126,9 +111,9 @@ class CloudFront:
             Description='Execution roles for lambdas created by the cdn-bypass burp plugin.',
         )
 
-        yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Adding Policy'
+        yield f'IAM Role {trim(role_name, 15)}... -- Adding Policy'
         iam.put_role_policy(
-            RoleName=self.lambda_role_name,
+            RoleName=role_name,
             PolicyName='basic-execution',
             # TODO: fix resource
             PolicyDocument='''{{
@@ -151,10 +136,10 @@ class CloudFront:
                         ]
                     }}
                 ]
-            }}'''.format(self.lambda_function_name)
+            }}'''.format(lambda_name)
         )
         self.lambda_role_arn = resp['Role']['Arn']
-        yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Created'
+        yield f'IAM Role {trim(role_name, 15)}... -- Created'
 
     def delete_lambda_role(self):
         yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Deleting'
@@ -170,28 +155,26 @@ class CloudFront:
 
         yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Deleted'
 
-    def create_function(self, lambda_role_arn):
-        yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Creating'
-        main = Path(__file__).parents[1]/'lambdas/request/main.py'
-        with open(main, 'r') as f:
-            source_code = f.read()
-
-        # Lambda@Edge functions can't use environment variables so set this as a global.
-        source_code = re.sub(r'DEFAULT_HOST\s+=.*', 'DEFAULT_HOST = "{}"'.format(self.host), source_code)
-
-        if self.x_forwarded_for:
-            source_code = re.sub(r'X_FORWARDED_FOR\s+=.*', 'X_FORWARDED_FOR = "{}"'.format(self.x_forwarded_for),
-                                 source_code)
+    def create_function(self, name, role_arn):
+        yield f'Lambda {trim(name, 15)}... -- Creating'
 
         zip = io.BytesIO()
         with zipfile.ZipFile(zip, 'w', zipfile.ZIP_DEFLATED) as zip_file:
+            main = Path(__file__).parents[1] / 'lambdas/request/main.py'
+            with open(main, 'r') as f:
+                source_code = f.read()
             zip_file.writestr('main.py', source_code)
+
+            main = Path(__file__).parents[1] / 'lambdas/request/help.html'
+            with open(main, 'r') as f:
+                source_code = f.read()
+            zip_file.writestr('help.html', source_code)
 
         lamb = self.sess.client('lambda', region_name='us-east-1')
 
         exists = False
         try:
-            lamb.get_function(FunctionName=self.lambda_function_name)
+            lamb.get_function(FunctionName=name)
             exists = True
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] != 'ResourceNotFoundException':
@@ -200,7 +183,7 @@ class CloudFront:
         if exists:
             zip.seek(0)
             resp = lamb.update_function_code(
-                FunctionName=self.lambda_function_name,
+                FunctionName=name,
                 ZipFile=zip.read(),
                 Publish=False,
             )
@@ -208,13 +191,13 @@ class CloudFront:
             i = 1
             resp = None
             while not resp:
-                yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Creating function ({i})'
+                yield f'Lambda {trim(name, 15)}... -- Creating function ({i})'
                 try:
                     zip.seek(0)
                     resp = lamb.create_function(
-                        FunctionName=self.lambda_function_name,
+                        FunctionName=name,
                         Runtime='python3.8',
-                        Role=lambda_role_arn,
+                        Role=role_arn,
                         Handler='main.lambda_handler',
                         Code={
                             'ZipFile': zip.read(),
@@ -232,14 +215,14 @@ class CloudFront:
                     i += 1
                     sleep(5)
 
-            yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Adding permissions'
+            yield f'Lambda {trim(name, 15)}... -- Adding permissions'
             lamb.add_permission(
                 StatementId='replicator',
                 FunctionName=resp['FunctionName'],
                 Principal='replicator.lambda.amazonaws.com',
                 Action='lambda:GetFunction',
             )
-            yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Publishing'
+            yield f'Lambda {trim(name, 15)}... -- Publishing'
 
         resp = lamb.publish_version(FunctionName=resp['FunctionName'])
         self.lambda_arn = resp['FunctionArn']
@@ -290,7 +273,7 @@ class CloudFront:
         yield 'Distribution -- Creating'
         client = self.sess.client('cloudfront', region_name='us-east-1')
 
-        policy_name = 'cdn-proxy-{}'.format(self.target.replace('.', '-'))
+        policy_name = 'cdn-proxy'
         policy_id = None
 
         resp = client.list_origin_request_policies(Type='custom')
@@ -336,7 +319,9 @@ class CloudFront:
                                 'Items': [
                                     {
                                         'Id': 'default',
-                                        'DomainName': self.target,
+                                        # Doesn't really matter what the origin is here, we require overriding it
+                                        # via the Cdn-Proxy-Origin header in all requests.
+                                        'DomainName': 'example.com',
                                         'CustomOriginConfig': {
                                             'HTTPPort': 80,
                                             'HTTPSPort': 443,
@@ -400,7 +385,7 @@ class CloudFront:
                             'CacheBehaviors': {
                                 'Quantity': 0,
                             },
-                            'Comment': 'cdn-proxy distribution for {}'.format(self.target),
+                            'Comment': 'cdn-proxy distribution',
                             'PriceClass': 'PriceClass_100',
                             'Enabled': True,
                             'ViewerCertificate': {
@@ -414,7 +399,7 @@ class CloudFront:
                             'Items': [
                                 {
                                     'Key': 'cdn-proxy-target',
-                                    'Value': self.target,
+                                    'Value': 'example.com',
                                 },
                             ]
                         }

@@ -3,8 +3,8 @@ FROM python:3.9-alpine3.12
 
 RUN apk add --no-cache aws-cli
 
-WORKDIR /usr/src/cdn-proxy/
-ENV PYTHONPATH /usr/src/cdn-proxy/
+WORKDIR /usr/src/cdn-proxy
+ENV PYTHONPATH /usr/src/cdn-proxy
 
 # Install dev requirements
 RUN apk add --no-cache \
@@ -21,7 +21,7 @@ RUN apk add --no-cache \
     py3-cryptography
 
 COPY ./requirements* ./
-#RUN python3 -m pip install -r requirements.txt -r requirements-dev.txt
+RUN python3 -m pip install -r requirements.txt -r requirements-dev.txt
 
 COPY ./ ./
 
