@@ -10,6 +10,9 @@ disabled.
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Usage](#usage)
+  - [CloudFront](#cloudfront)
+  - [CloudFlare](#cloudflare)
+- [Burp Suite Extension](#burp-suite-extension)
 - [Support](#support)
 - [Contributing](#contributing)
 
