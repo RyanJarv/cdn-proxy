@@ -39,7 +39,7 @@ class CloudFront:
                                     f'distribution {proxy.id} with a URL of https://{proxy.domain} or '
                                     f'http://{proxy.domain}.')
 
-        yield from self.create_lambda_role(self.lambda_role_name, self.lambda_function_name)
+        yield from self.create_lambda_role()
         yield from self.create_function(self.lambda_role_arn)
         yield from self.create_distribution(self.lambda_arn)
         yield from self.wait_for_distribution()
@@ -78,21 +78,21 @@ class CloudFront:
                     )
         return None
 
-    def create_lambda_role(self, role_name: str, lambda_name: str):
-        yield f'Lambda Role {trim(role_name, 15)}... -- Creating'
+    def create_lambda_role(self):
+        yield f'Lambda Role {trim(self.lambda_role_name, 15)}... -- Creating'
         iam = self.sess.client('iam', region_name='us-east-1')
 
         try:
-            resp = iam.get_role(RoleName=role_name)
+            resp = iam.get_role(RoleName=self.lambda_role_name)
             self.lambda_role_arn = resp['Role']['Arn']
-            yield f'IAM Role {trim(role_name, 15)}... -- Already Exists'
+            yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Already Exists'
             return
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] != 'NoSuchEntity':
                 raise e
 
         resp = iam.create_role(
-            RoleName=role_name,
+            RoleName=self.lambda_role_name,
             AssumeRolePolicyDocument='''{
               "Version": "2012-10-17",
               "Statement": [
@@ -111,9 +111,9 @@ class CloudFront:
             Description='Execution roles for lambdas created by the cdn-bypass burp plugin.',
         )
 
-        yield f'IAM Role {trim(role_name, 15)}... -- Adding Policy'
+        yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Adding Policy'
         iam.put_role_policy(
-            RoleName=role_name,
+            RoleName=self.lambda_role_name,
             PolicyName='basic-execution',
             # TODO: fix resource
             PolicyDocument='''{{
@@ -131,15 +131,15 @@ class CloudFront:
                             "logs:PutLogEvents"
                         ],
                         "Resource": [
-                            "arn:aws:logs:*:*:log-group:/aws/lambda/{}:*"
-                            "*"
+                            "arn:aws:logs:*:*:log-group:/aws/lambda/{name:}:*",
+                            "arn:aws:logs:*:*:log-group:/aws/lambda/*.{name}:*"
                         ]
                     }}
                 ]
-            }}'''.format(lambda_name)
+            }}'''.format(name=self.lambda_function_name)
         )
         self.lambda_role_arn = resp['Role']['Arn']
-        yield f'IAM Role {trim(role_name, 15)}... -- Created'
+        yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Created'
 
     def delete_lambda_role(self):
         yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Deleting'
@@ -155,8 +155,8 @@ class CloudFront:
 
         yield f'IAM Role {trim(self.lambda_role_name, 15)}... -- Deleted'
 
-    def create_function(self, name, role_arn):
-        yield f'Lambda {trim(name, 15)}... -- Creating'
+    def create_function(self, role_arn):
+        yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Creating'
 
         zip = io.BytesIO()
         with zipfile.ZipFile(zip, 'w', zipfile.ZIP_DEFLATED) as zip_file:
@@ -174,7 +174,7 @@ class CloudFront:
 
         exists = False
         try:
-            lamb.get_function(FunctionName=name)
+            lamb.get_function(FunctionName=self.lambda_function_name)
             exists = True
         except botocore.exceptions.ClientError as e:
             if e.response['Error']['Code'] != 'ResourceNotFoundException':
@@ -183,7 +183,7 @@ class CloudFront:
         if exists:
             zip.seek(0)
             resp = lamb.update_function_code(
-                FunctionName=name,
+                FunctionName=self.lambda_function_name,
                 ZipFile=zip.read(),
                 Publish=False,
             )
@@ -191,11 +191,11 @@ class CloudFront:
             i = 1
             resp = None
             while not resp:
-                yield f'Lambda {trim(name, 15)}... -- Creating function ({i})'
+                yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Creating function ({i})'
                 try:
                     zip.seek(0)
                     resp = lamb.create_function(
-                        FunctionName=name,
+                        FunctionName=self.lambda_function_name,
                         Runtime='python3.8',
                         Role=role_arn,
                         Handler='main.lambda_handler',
@@ -215,14 +215,14 @@ class CloudFront:
                     i += 1
                     sleep(5)
 
-            yield f'Lambda {trim(name, 15)}... -- Adding permissions'
+            yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Adding permissions'
             lamb.add_permission(
                 StatementId='replicator',
                 FunctionName=resp['FunctionName'],
                 Principal='replicator.lambda.amazonaws.com',
                 Action='lambda:GetFunction',
             )
-            yield f'Lambda {trim(name, 15)}... -- Publishing'
+            yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Publishing'
 
         resp = lamb.publish_version(FunctionName=resp['FunctionName'])
         self.lambda_arn = resp['FunctionArn']
@@ -265,9 +265,6 @@ class CloudFront:
                       'work.')
 
         yield f'Lambda {trim(self.lambda_function_name, 15)}... -- Deleted'
-
-    def update_distribution(self, lambda_arn):
-        pass
 
     def create_distribution(self, lambda_arn):
         yield 'Distribution -- Creating'
@@ -449,11 +446,7 @@ class CloudFront:
         client.delete_distribution(Id=dist_id, IfMatch=resp['ETag'])
         yield f'Distribution {dist_id} -- Deleted'
 
-    # Apparently the latest version isn't always 1, even if we just created the function.
-    def get_latest_lambda_version(self, lambda_name):
-        return max(self.get_lambda_versions(lambda_name))
-
-    def get_lambda_versions(self, lambda_name):
+    def get_lambda_versions(self):
         lamb = self.sess.client('lambda', region_name='us-east-1')
         resp = lamb.list_versions_by_function(FunctionName=self.lambda_function_name)
         versions = [v['Version'] for v in resp['Versions']]

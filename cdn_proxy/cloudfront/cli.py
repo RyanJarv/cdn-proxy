@@ -89,9 +89,10 @@ async def _scan(host, targets, workers):
         tasks = []
         with typer.progressbar(list(networks_to_hosts(targets)), label=f"Scanning") as progress:
             for origin in progress:
-                tasks.append(scan.scan(str(origin), host))
+                tasks.append(scan.scan(origin, host))
 
         await asyncio.gather(*tasks)
+
 
 @app.command()
 def delete(target: str = typer.Argument(..., help='Optional device name to limit snapshots to.')):
@@ -101,7 +102,7 @@ def delete(target: str = typer.Argument(..., help='Optional device name to limit
     ID specifies the CloudFront distribution to delete, this can be found with the list command.
     """
 
-    cloudfront = CloudFront(sess, target)
+    cloudfront = CloudFront(sess)
     with typer.progressbar(cloudfront.delete(), length=30, label=f"Destroying {id}") as progress:
         for update in progress:
             progress.label = typer.style(update, fg=typer.colors.CYAN)
@@ -112,5 +113,4 @@ def status():
     """Get the status of the CloudFront deployment."""
 
     proxy = CloudFront.status(sess)
-    typer.echo(f"* Target: {typer.style(proxy.target, fg=typer.colors.CYAN)} DistributionID: {proxy.id} "
-               f"ProxyUrl: {proxy.domain}")
+    typer.echo(f"* DistributionID: {typer.style(proxy.id, fg=typer.colors.CYAN)} ProxyUrl: {proxy.domain}")

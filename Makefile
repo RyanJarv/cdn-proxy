@@ -7,11 +7,5 @@ dev/build:
 dev/run:
 	docker run -it -v "${PWD}:/usr/src/cdn-proxy" -w /usr/src/cdn-proxy cdn-proxy
 
-
-PACKAGE := pacu
-MODULES := $(wildcard $(PACKAGE)/*.py)
-
-
-.PHONY: watch
-watch: install .clean-test ## Continuously run all CI tasks when files chanage
-	poetry run sniffer
+test:
+	python3 -m pytest ./tests/test_unit.py ./tests/test_lambda_request.py

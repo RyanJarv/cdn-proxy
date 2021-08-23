@@ -16,4 +16,4 @@ def trim(s: str, length: int):
 def networks_to_hosts(networks: List[str]) -> Generator[str, None, None]:
     for net in networks:
         for host in ipaddress.ip_network(net).hosts():
-            yield host
+            yield str(host)
