@@ -9,10 +9,10 @@ from cdn_proxy.cloudfront import CloudFront
 
 
 class CloudFrontScanner(CloudFront):
-    def __init__(self, *args, max: int = 20, **kwargs):
+    def __init__(self, *args, workers: int = 20, **kwargs):
         super().__init__(*args, **kwargs)
         self._session: "aiohttp.ClientSession"
-        sem = asyncio.Semaphore(20)
+        self.sem = asyncio.Semaphore(workers)
 
     async def __aenter__(self):
         conn = aiohttp.TCPConnector(verify_ssl=False)
@@ -24,11 +24,12 @@ class CloudFrontScanner(CloudFront):
         self._session: "aiohttp.ClientSession" = None  # noqa
 
     async def scan(self, origin: str, host: str = None):
-        result = await self._scan(host, origin)
+        async with self.sem:
+            result = await self._scan(host, origin)
 
         msg = f"{str(origin)} -- Proxy: {result.ProxyState.value} / Origin: {result.OriginState.value}"
-        if result.OriginState == ServiceState.Closed and (
-            result.ProxyState in [ServiceState.Open, ServiceState.OpenServFail]
+        if result.OriginState == ServiceState.CLOSED and (
+            result.ProxyState in [ServiceState.OPEN, ServiceState.OPEN_SERV_FAIL]
         ):
             msg = msg + " -- Proxy Bypass Found"
         print(msg)
@@ -59,36 +60,36 @@ class CloudFrontScanner(CloudFront):
                 proxy_resp = resp
             return proxy_resp
         except aiohttp.client_exceptions.ServerDisconnectedError:
-            return RequestError.Disconnected
+            return RequestError.DISCONNECTED
         except (
             aiohttp.client_exceptions.ClientConnectorError,
             aiohttp.client_exceptions.ClientOSError,
         ):
-            return RequestError.ClientError
+            return RequestError.CLIENT_ERROR
         except asyncio.exceptions.TimeoutError:
-            return RequestError.Timeout
+            return RequestError.TIMEOUT
 
     async def _check_status(self, resp):
         state = None
         if type(resp) is RequestError:
-            if resp == RequestError.ClientError:
-                state = ServiceState.ClientFailed
-            elif resp == RequestError.Timeout:
-                state = ServiceState.Filtered
-            elif resp == RequestError.Disconnected:
-                state = ServiceState.OpenServFail
+            if resp == RequestError.CLIENT_ERROR:
+                state = ServiceState.CLIENT_FAILED
+            elif resp == RequestError.TIMEOUT:
+                state = ServiceState.FILTERED
+            elif resp == RequestError.DISCONNECTED:
+                state = ServiceState.OPEN_SERV_FAIL
             else:
                 import pdb
 
                 pdb.set_trace()
         elif 200 <= resp.status <= 499:
-            state = ServiceState.Open
+            state = ServiceState.OPEN
         elif resp.status == 500:
-            state = ServiceState.OpenServFail
+            state = ServiceState.OPEN_SERV_FAIL
         elif resp.status in [502, 503]:
-            state = ServiceState.Closed
+            state = ServiceState.CLOSED
         elif resp.status == 504:
-            state = ServiceState.Filtered
+            state = ServiceState.FILTERED
         else:
             import pdb
 
@@ -107,14 +108,14 @@ class ScanResult:
 
 
 class ServiceState(Enum):
-    ClientFailed = "unknown (client failed)"
-    Open = "open"
-    OpenServFail = "open (server failed)"
-    Closed = "closed"
-    Filtered = "closed"
+    CLIENT_FAILED = "unknown (client failed)"
+    OPEN = "open"
+    OPEN_SERV_FAIL = "open (server failed)"
+    CLOSED = "closed"
+    FILTERED = "closed"
 
 
 class RequestError(Enum):
-    Disconnected = "Disconnected"
-    ClientError = "ClientConnectorError"
-    Timeout = "Timeout"
+    DISCONNECTED = "Disconnected"
+    CLIENT_ERROR = "ClientConnectorError"
+    TIMEOUT = "Timeout"

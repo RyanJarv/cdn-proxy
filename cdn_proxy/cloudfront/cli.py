@@ -109,11 +109,9 @@ def scan(
 
 
 async def _scan(host, targets, workers):
-    async with CloudFrontScanner(sess, max=workers) as scan:
+    async with CloudFrontScanner(sess, workers=workers) as scan:
         tasks = []
-        with typer.progressbar(
-            list(networks_to_hosts(targets)), label=f"Scanning"
-        ) as progress:
+        with typer.progressbar(list(networks_to_hosts(targets)), label=f"Scanning") as progress:
             for origin in progress:
                 tasks.append(scan.scan(origin, host))
 
