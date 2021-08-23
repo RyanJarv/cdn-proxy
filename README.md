@@ -10,6 +10,9 @@ disabled.
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
 - [Usage](#usage)
+  - [CloudFront](#cloudfront)
+  - [CloudFlare](#cloudflare)
+- [Burp Suite Extension](#burp-suite-extension)
 - [Support](#support)
 - [Contributing](#contributing)
 
@@ -68,9 +71,17 @@ The process and required options is different between providers, refer to the pr
 
 #### Overview
 
-The CloudFront module will set up the distribution for you as well as correctly set the Host header as the request
-passes through the CDN. The X-Forwarded-For header in the request to the origin is randomized for all requests. This
-will allow bypassing app side IP based rate limiting in some cases.
+The CloudFront module will set up the distribution that acts as a proxy through CloudFront. The origin and host header
+can be controlled per request by setting the Cdn-Proxy-Origin and Cdn-Proxy-Host headers. The X-Forwarded-For header
+will also be passed through from the client, if this isn't set howeveer it will default to a random IP address in the
+request to the origin which will allow bypassing app side IP ratelimiting in some cases.
+
+After deploying navigating to the distribution will show a help page with more info on headers to control the request
+as well as some examples.
+
+In addition to making requests manually with curl you can use the CDN Proxy's [Burp Suite Extension](#burp-suite-extension)
+to proxy all Burp requests through the CloudFront proxy. Among other things this allows you to browse any sites only
+exposed to CloudFront IPs like you normally would through the built in Burp browser.
 
 #### Caveats
 
@@ -133,6 +144,31 @@ Commands:
   delete  Disable and delete the specified distribution.
   list    List CloudFront distributions IDs and targets created with...
 ```
+
+## Burp Suite Extension
+The [Burp Suite extension script](./burp_extension/cdn_proxy_burp_ext.py) can be used to proxy traffic through a CloudFront proxy created with cdn-proxy.
+
+### Install
+```
+git clone https://github.com/RhinoSecurityLabs/cdn-proxy.git
+cd cdn-proxy/burp_extension
+python3 -m venv venv
+source venv/bin/activate
+pip3 install -r requirements.txt
+```
+
+In Burp Extender under the Options tab:
+* Make sure the Jython jar location is specified under the Python Environment section.
+* In the same section set `Folder for loading modules` to `<location of git repo>/burp_extension/venv/lib/python3.9/site-packages`
+
+In Burp Extender under the Extensions tab:
+* Click `Add`
+* set `Extension type` to python
+* Use `Select file...` to load [cdn_proxy_burp_ext.py](./burp_extension/cdn_proxy_burp_ext.py)
+* Click `Next`
+
+In the new CDN Proxy tab that shows up, set the `Proxy Host` field to the domain of the distribution created with
+`cdn-proxy cloudflare create`. Traffic from Burp will now be routed through the CloudFront proxy.
 
 ## Support
 
