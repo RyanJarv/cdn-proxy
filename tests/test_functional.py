@@ -12,9 +12,12 @@ runner = CliRunner()
 
 
 def test_cloudfront_create():
-    result = runner.invoke(app, ["cloudfront", "create", "--host", "example.com", "example.com"])
+    result = runner.invoke(
+        app, ["cloudfront", "create", "--host", "example.com", "example.com"]
+    )
     assert result.stdout == ""
     assert result.exit_code == 0
+
 
 # @pytest.fixture
 # def sess():

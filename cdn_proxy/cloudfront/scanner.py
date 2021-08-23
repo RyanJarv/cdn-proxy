@@ -11,35 +11,36 @@ from cdn_proxy.cloudfront import CloudFront
 class CloudFrontScanner(CloudFront):
     def __init__(self, *args, max: int = 20, **kwargs):
         super().__init__(*args, **kwargs)
-        self._session: 'aiohttp.ClientSession'
+        self._session: "aiohttp.ClientSession"
         sem = asyncio.Semaphore(20)
 
     async def __aenter__(self):
         conn = aiohttp.TCPConnector(verify_ssl=False)
-        self._session: 'aiohttp.ClientSession' = aiohttp.ClientSession(connector=conn)
+        self._session: "aiohttp.ClientSession" = aiohttp.ClientSession(connector=conn)
         return self
 
     async def __aexit__(self, *err):
         await self._session.close()
-        self._session: 'aiohttp.ClientSession' = None  # noqa
+        self._session: "aiohttp.ClientSession" = None  # noqa
 
     async def scan(self, origin: str, host: str = None):
         result = await self._scan(host, origin)
 
         msg = f"{str(origin)} -- Proxy: {result.ProxyState.value} / Origin: {result.OriginState.value}"
-        if result.OriginState == ServiceState.Closed and \
-                (result.ProxyState in [ServiceState.Open, ServiceState.OpenServFail]):
-             msg = msg + " -- Proxy Bypass Found"
+        if result.OriginState == ServiceState.Closed and (
+            result.ProxyState in [ServiceState.Open, ServiceState.OpenServFail]
+        ):
+            msg = msg + " -- Proxy Bypass Found"
         print(msg)
 
-    async def _scan(self, host, origin) -> 'ScanResult':
-        proxy_hdrs = {'Cdn-Proxy-Origin': origin}
+    async def _scan(self, host, origin) -> "ScanResult":
+        proxy_hdrs = {"Cdn-Proxy-Origin": origin}
         if host:
-            proxy_hdrs['Cdn-Proxy-Host'] = host
+            proxy_hdrs["Cdn-Proxy-Host"] = host
 
         origin_hdrs = {}
         if origin_hdrs:
-            origin_hdrs['Host'] = host
+            origin_hdrs["Host"] = host
 
         proxy_resp = await self._fetch(self.distribution.domain, proxy_hdrs)
         orig_resp = await self._fetch(origin, origin_hdrs)
@@ -60,8 +61,8 @@ class CloudFrontScanner(CloudFront):
         except aiohttp.client_exceptions.ServerDisconnectedError:
             return RequestError.Disconnected
         except (
-                aiohttp.client_exceptions.ClientConnectorError,
-                aiohttp.client_exceptions.ClientOSError,
+            aiohttp.client_exceptions.ClientConnectorError,
+            aiohttp.client_exceptions.ClientOSError,
         ):
             return RequestError.ClientError
         except asyncio.exceptions.TimeoutError:
@@ -77,7 +78,9 @@ class CloudFrontScanner(CloudFront):
             elif resp == RequestError.Disconnected:
                 state = ServiceState.OpenServFail
             else:
-                import pdb; pdb.set_trace()
+                import pdb
+
+                pdb.set_trace()
         elif 200 <= resp.status <= 499:
             state = ServiceState.Open
         elif resp.status == 500:
@@ -87,16 +90,20 @@ class CloudFrontScanner(CloudFront):
         elif resp.status == 504:
             state = ServiceState.Filtered
         else:
-            import pdb; pdb.set_trace()
+            import pdb
+
+            pdb.set_trace()
 
         return state
 
+
 # TODO: Make sure https goes to https on the backend
+
 
 @dataclass
 class ScanResult:
-    ProxyState: 'ServiceState'
-    OriginState: 'ServiceState'
+    ProxyState: "ServiceState"
+    OriginState: "ServiceState"
 
 
 class ServiceState(Enum):
@@ -108,7 +115,6 @@ class ServiceState(Enum):
 
 
 class RequestError(Enum):
-    Disconnected = 'Disconnected'
-    ClientError = 'ClientConnectorError'
-    Timeout = 'Timeout'
-
+    Disconnected = "Disconnected"
+    ClientError = "ClientConnectorError"
+    Timeout = "Timeout"
