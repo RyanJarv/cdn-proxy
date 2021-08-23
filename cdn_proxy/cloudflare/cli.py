@@ -12,16 +12,19 @@ cloudflare: CloudFlare = None
 
 @app.callback()
 def session(
-        token: str = typer.Option(..., help="Sets the AWS region.", metavar="REGION"),
-        zone_name: str = typer.Option(..., help="Sets the AWS region.", metavar="REGION"),
-
+    token: str = typer.Option(..., help="Sets the AWS region.", metavar="REGION"),
+    zone_name: str = typer.Option(..., help="Sets the AWS region.", metavar="REGION"),
 ):
     global cloudflare
     cloudflare = CloudFlare(token, zone_name)
 
 
 @app.command()
-def create(target: str = typer.Argument(..., help='The origin to target, can be an IP or hostname.')):
+def create(
+    target: str = typer.Argument(
+        ..., help="The origin to target, can be an IP or hostname."
+    )
+):
     """
     Create a new CloudFront distribution and Lambda@Edge function targeting the specified origin.
 
@@ -31,7 +34,9 @@ def create(target: str = typer.Argument(..., help='The origin to target, can be 
     The X-Forwarded-For header will be also set to a random IP address by the Lambda@Edge function.
     """
 
-    with typer.progressbar(cloudflare.create(target), length=10, label=f"Creating {target}") as progress:
+    with typer.progressbar(
+        cloudflare.create(target), length=10, label=f"Creating {target}"
+    ) as progress:
         for update in progress:
             progress.label = update
             progress.update(1)
@@ -39,14 +44,18 @@ def create(target: str = typer.Argument(..., help='The origin to target, can be 
 
 
 @app.command()
-def delete(id: str = typer.Argument(..., help='Optional device name to limit snapshots to.')):
+def delete(
+    id: str = typer.Argument(..., help="Optional device name to limit snapshots to.")
+):
     """
     Disable and delete the specified distribution.
 
     ID specifies the CloudFront distribution to delete, this can be found with the list command.
     """
 
-    with typer.progressbar(cloudflare.delete(id), length=5, label=f"Destroying {id}") as progress:
+    with typer.progressbar(
+        cloudflare.delete(id), length=5, label=f"Destroying {id}"
+    ) as progress:
         for update in progress:
             progress.label = update
             progress.update(1)

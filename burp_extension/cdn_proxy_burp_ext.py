@@ -4,8 +4,17 @@
 from copy import deepcopy
 from time import time
 
-from javax.swing import JPanel, JTextField, JButton, JLabel, BoxLayout, JPasswordField, JCheckBox, JRadioButton, \
-    ButtonGroup
+from javax.swing import (
+    JPanel,
+    JTextField,
+    JButton,
+    JLabel,
+    BoxLayout,
+    JPasswordField,
+    JCheckBox,
+    JRadioButton,
+    ButtonGroup,
+)
 from burp import IBurpExtender, IExtensionStateListener, ITab, IHttpListener
 from java.awt import GridLayout
 import boto3
@@ -15,14 +24,15 @@ import re
 # import xml.parsers.expat
 # xml.parsers.expat._xerces_parser_name = "org.apache.xerces.parsers.SAXParser"
 
-EXT_NAME = 'IP Rotate'
+EXT_NAME = "IP Rotate"
 ENABLED = '<html><h2><font color="green">Enabled</font></h2></html>'
 DISABLED = '<html><h2><font color="red">Disabled</font></h2></html>'
-STAGE_NAME = 'burpendpoint'
-API_NAME = 'BurpAPI'
+STAGE_NAME = "burpendpoint"
+API_NAME = "BurpAPI"
 
 # import xml.etree.ElementTree as ET
 # ET.fromstring('<test></test>')
+
 
 class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
     def __init__(self):
@@ -42,7 +52,9 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
     # Traffic redirecting
     def processHttpMessage(self, toolFlag, messageIsRequest, messageInfo):
         # only process requests
-        if not messageIsRequest or not self.isEnabled: # or not toolFlag == self.helpers.TOOL_PROXY:
+        if (
+            not messageIsRequest or not self.isEnabled
+        ):  # or not toolFlag == self.helpers.TOOL_PROXY:
             return
 
         # get the HTTP service for the request
@@ -50,15 +62,14 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
 
         # Modify the request host, host header, and path to point to the new API endpoint
         # Should always use HTTPS because API Gateway only uses HTTPS
-        proxy_host = self.proxy_host.text.split(':')[0]
+        proxy_host = self.proxy_host.text.split(":")[0]
 
         requestInfo = self.helpers.analyzeRequest(messageInfo)
         headers = requestInfo.getHeaders()
 
         messageInfo.setHttpService(
             self.helpers.buildHttpService(
-                proxy_host,
-                httpService.getPort(), httpService.getProtocol() == "https"
+                proxy_host, httpService.getPort(), httpService.getProtocol() == "https"
             )
         )
 
@@ -74,22 +85,19 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
 
         # Replace the Host header with the Gateway host
         for i, header in enumerate(headers):
-            if header.startswith('Host: '):
+            if header.startswith("Host: "):
                 # host_header_index = new_headers.index(header)
                 # new_headers[host_header_index] = 'Host: ' + proxy_host
                 print("Fund host header: " + header)
-                headers[i] = 'Host: ' + proxy_host
+                headers[i] = "Host: " + proxy_host
 
-        headers.add('Cdn-Proxy-Origin: {}'.format(requestInfo.getUrl().getHost()))
-        headers.add('Cdn-Proxy-Host: {}'.format(requestInfo.getUrl().getHost()))
-        print('headers: ' + headers)
+        headers.add("Cdn-Proxy-Origin: {}".format(requestInfo.getUrl().getHost()))
+        headers.add("Cdn-Proxy-Host: {}".format(requestInfo.getUrl().getHost()))
+        print("headers: " + headers)
 
         # Update the headers insert the existing body
-        body = messageInfo.request[requestInfo.getBodyOffset():]
-        messageInfo.request = self.helpers.buildHttpMessage(
-            headers,
-            body
-        )
+        body = messageInfo.request[requestInfo.getBodyOffset() :]
+        messageInfo.request = self.helpers.buildHttpMessage(headers, body)
 
     # Tab name
     def getTabCaption(self):
@@ -123,17 +131,19 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
 
         self.proxy_host_panel = JPanel()
         self.main.add(self.proxy_host_panel)
-        self.proxy_host_panel.setLayout(BoxLayout(self.proxy_host_panel, BoxLayout.X_AXIS))
-        self.proxy_host_panel.add(JLabel('Proxy CDN Domain: '))
-        self.proxy_host = JTextField('<dist id>.cloudfront.com', 25)
+        self.proxy_host_panel.setLayout(
+            BoxLayout(self.proxy_host_panel, BoxLayout.X_AXIS)
+        )
+        self.proxy_host_panel.add(JLabel("Proxy CDN Domain: "))
+        self.proxy_host = JTextField("<dist id>.cloudfront.com", 25)
         self.proxy_host_panel.add(self.proxy_host)
 
         self.buttons_panel = JPanel()
         self.main.add(self.buttons_panel)
         self.buttons_panel.setLayout(BoxLayout(self.buttons_panel, BoxLayout.X_AXIS))
-        self.enable_button = JButton('Enable', actionPerformed=self.enable_proxy)
+        self.enable_button = JButton("Enable", actionPerformed=self.enable_proxy)
         self.buttons_panel.add(self.enable_button)
-        self.disable_button = JButton('Disable', actionPerformed=self.disable_proxy)
+        self.disable_button = JButton("Disable", actionPerformed=self.disable_proxy)
         self.buttons_panel.add(self.disable_button)
         self.disable_button.setEnabled(False)
 

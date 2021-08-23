@@ -10,7 +10,7 @@ def trim(s: str, length: int):
     if len(s) <= length:
         return s
     else:
-        return s[0:length] + '...'
+        return s[0:length] + "..."
 
 
 def networks_to_hosts(networks: List[str]) -> Generator[str, None, None]:
