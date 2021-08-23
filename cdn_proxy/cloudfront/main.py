@@ -34,6 +34,9 @@ class CloudFront:
 
     def create(self):
         proxy = self.status(self.sess)
+        yield from self.create_lambda_role()
+        yield from self.create_function(self.lambda_role_arn)
+
         if proxy:
             raise CdnProxyException(
                 f"A deployment already exists. It can be accessed through the CloudFront "
@@ -41,8 +44,6 @@ class CloudFront:
                 f"http://{proxy.domain}."
             )
 
-        yield from self.create_lambda_role()
-        yield from self.create_function(self.lambda_role_arn)
         yield from self.create_distribution(self.lambda_arn)
         yield from self.wait_for_distribution()
         yield f"Deployment completed."

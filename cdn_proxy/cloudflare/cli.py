@@ -61,8 +61,8 @@ def delete(
             progress.update(1)
 
 
-@app.command()
-def list():
+@app.command(name="list")
+def _list():
     """
     List CloudFront distributions IDs and targets created with cdn-proxy.
 

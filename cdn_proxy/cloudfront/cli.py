@@ -28,14 +28,7 @@ def session(
 
 
 @app.command()
-def create(
-    host: str = typer.Option(
-        None, help="Value to set the Host header to set on requests to the origin."
-    ),
-    target: str = typer.Argument(
-        ..., help="Optional device name to limit snapshots to."
-    ),
-):
+def create():
     """
     Create a new CloudFront distribution and Lambda@Edge function targeting the specified origin.
 
@@ -45,40 +38,9 @@ def create(
     The X-Forwarded-For header will be also set to a random IP address by the Lambda@Edge function.
     """
 
-    cloudfront = CloudFront(sess, target, host)
+    cloudfront = CloudFront(sess)
     with typer.progressbar(
-        cloudfront.create(), length=20, label=f"Creating {target}"
-    ) as progress:
-        for update in progress:
-            progress.label = typer.style(update, fg=typer.colors.CYAN)
-            progress.update(1)
-    typer.echo(
-        f"The new distribution is accessible at {cloudfront.domain_name}",
-        color=typer.colors.GREEN,
-    )
-
-
-@app.command()
-def update(
-    host: str = typer.Option(
-        None, help="Value to set the Host header to set on requests to the origin."
-    ),
-    target: str = typer.Argument(
-        ..., help="Optional device name to limit snapshots to."
-    ),
-):
-    """
-    Create a new CloudFront distribution and Lambda@Edge function targeting the specified origin.
-
-    Requests that pass through this distribution will have their Host header rewritten by the Lambda@Edge function to
-    specify the target domain.
-
-    The X-Forwarded-For header will be also set to a random IP address by the Lambda@Edge function.
-    """
-
-    cloudfront = CloudFront(sess, target, host)
-    with typer.progressbar(
-        cloudfront.update(), length=20, label=f"Creating {target}"
+        cloudfront.create(), length=20, label=f"Creating Proxy"
     ) as progress:
         for update in progress:
             progress.label = typer.style(update, fg=typer.colors.CYAN)
@@ -119,11 +81,7 @@ async def _scan(host, targets, workers):
 
 
 @app.command()
-def delete(
-    target: str = typer.Argument(
-        ..., help="Optional device name to limit snapshots to."
-    )
-):
+def delete():
     """
     Disable and delete the specified distribution.
 
@@ -139,10 +97,14 @@ def delete(
             progress.update(1)
 
 
+@app.command()
 def status():
     """Get the status of the CloudFront deployment."""
 
     proxy = CloudFront.status(sess)
-    typer.echo(
-        f"* DistributionID: {typer.style(proxy.id, fg=typer.colors.CYAN)} ProxyUrl: {proxy.domain}"
-    )
+    if proxy:
+        typer.echo(f"Status: {typer.style('Deployed', bold=True, fg=typer.colors.GREEN)}")
+        typer.echo(f"DistributionID: {typer.style(proxy.id, bold=True)}")
+        typer.echo(f"ProxyUrl: {typer.style(proxy.domain, bold=True)}")
+    else:
+        typer.echo(f"Status: {typer.style('Not Deployed', bold=True, fg=typer.colors.RED)}")
