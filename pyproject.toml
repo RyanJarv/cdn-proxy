@@ -19,7 +19,6 @@ cloudflare = "^2.8.15"
 pytest = "^6.2.4"
 moto = {extras = ["lambda", "iam"], version = "^2.2.3"}
 docker = "^5.0.0"
-poetry = "^1.1.8"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

@@ -1,4 +1,5 @@
 # CDN Proxy
+[![Tests](https://github.com/RhinoSecurityLabs/cdn-proxy/actions/workflows/tests.yml/badge.svg)](https://github.com/RhinoSecurityLabs/cdn-proxy/actions/workflows/tests.yml)
 
 A tool that can be used by web app pentesters to create a copy of the targeted website with CDN and WAF restrictions
 disabled.
