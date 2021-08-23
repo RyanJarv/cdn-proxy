@@ -156,7 +156,7 @@
           if (window.location.hostname !== "") {
             var examples = document.getElementsByClassName("example");
             for (const example of examples) {
-              example.textContent.replaceAll('XXXXXXXXXXXXX', window.location.hostname);
+              example.textContent = example.textContent.replaceAll('XXXXXXXXXXXXX', window.location.hostname);
             }
           }
         </script>
