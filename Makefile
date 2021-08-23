@@ -7,5 +7,9 @@ dev/build:
 dev/run:
 	docker run -it -v "${PWD}:/usr/src/cdn-proxy" -w /usr/src/cdn-proxy cdn-proxy
 
+lint:
+	pylint `ls -R|grep .py$|xargs`
+
 test:
 	python3 -m pytest ./tests/test_unit.py ./tests/test_lambda_request.py
+
