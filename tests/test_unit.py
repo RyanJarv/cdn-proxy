@@ -28,7 +28,7 @@ def sess(aws_credentials):
 def cloudfront(sess) -> "CloudFront":
     CloudFront.status = Mock()
     CloudFront.status.return_value = CloudFrontProxy(
-        id="test-id",
+        distribution_id="test-id",
         domain="test-domain",
     )
     return CloudFront(sess)

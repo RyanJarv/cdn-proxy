@@ -30,12 +30,9 @@ function Scanner() {
                   variant="primary"
                   // className="scan-shit"
                   disabled={isLoading}
-                  onClick={(isLoading ? undefined : () => {
-                      scanner.scan(textToIps(ipRange))
-                      simulateNetworkRequest().then(() => {
-                          setLoading(false);
-                      });
-                      setLoading(true)
+                  onClick={isLoading ? undefined : () => {
+                      scanner.scan(textToIps(ipRange));
+                      setLoading(true);
                   }}
               >
                 Submit

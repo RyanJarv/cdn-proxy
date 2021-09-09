@@ -5,7 +5,11 @@ import typer
 
 from cdn_proxy.cloudflare import CloudFlare
 
-app = typer.Typer(name="cloudflare", help="Manage CloudFlare distributions")
+app = typer.Typer(
+    name="cloudflare",
+    help="Manage CloudFlare distributions",
+    context_settings={"help_option_names": ["-h", "--help"]},
+)
 
 cloudflare: CloudFlare = None
 

@@ -9,7 +9,11 @@ from cdn_proxy.cloudfront import CloudFront
 from cdn_proxy.cloudfront.scanner import CloudFrontScanner
 from cdn_proxy.lib import networks_to_hosts
 
-app = typer.Typer(name="cloudfront", help="Manage CloudFront distributions")
+app = typer.Typer(
+    name="cloudfront",
+    help="Manage CloudFront distributions",
+    context_settings={"help_option_names": ["-h", "--help"]}
+)
 
 sess: boto3.session.Session = boto3.session.Session()
 
@@ -104,7 +108,7 @@ def status():
     proxy = CloudFront.status(sess)
     if proxy:
         typer.echo(f"Status: {typer.style('Deployed', bold=True, fg=typer.colors.GREEN)}")
-        typer.echo(f"DistributionID: {typer.style(proxy.id, bold=True)}")
+        typer.echo(f"DistributionID: {typer.style(proxy.distribution_id, bold=True)}")
         typer.echo(f"ProxyUrl: {typer.style(proxy.domain, bold=True)}")
     else:
         typer.echo(f"Status: {typer.style('Not Deployed', bold=True, fg=typer.colors.RED)}")
