@@ -9,20 +9,20 @@ import './App.css';
 import Help from "./Help";
 import Scanner from "./Scanner";
 
-// Example POST method implementation:
-async function proxyReq(url = '', data = {}) {
-    // Default options are marked with *
-    const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-            'Cdn-Proxy-Origin': 'www.wikipedia.org',
-            'Cdn-Proxy-Host': 'www.wikipedia.org'
-        },
-        redirect: 'error', // manual, *follow, error
-    });
-    return response.json(); // parses JSON response into native JavaScript objects
-}
-
+// // Example POST method implementation:
+// async function proxyReq(url = '', data = {}) {
+//     // Default options are marked with *
+//     const response = await fetch(url, {
+//         method: 'GET',
+//         headers: {
+//             'Cdn-Proxy-Origin': 'www.wikipedia.org',
+//             'Cdn-Proxy-Host': 'www.wikipedia.org'
+//         },
+//         redirect: 'error', // manual, *follow, error
+//     });
+//     return response.json(); // parses JSON response into native JavaScript objects
+// }
+//
 const OurNavBar = (props: any) => (
     <Navbar bg="light" expand="lg">
         <Container>

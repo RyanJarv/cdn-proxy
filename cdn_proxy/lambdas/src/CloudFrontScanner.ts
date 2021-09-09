@@ -1,3 +1,5 @@
+import {Address4} from "ip-address";
+
 
 export class CloudFrontScanner {
   readonly hostnames: Array<string>;
@@ -37,4 +39,22 @@ export class CloudFrontScanner {
       this.request(backends[i])
     }
   }
+}
+
+
+export function textToIps(input: string): Array<string> {
+  let addr: Address4 = new Address4(input)
+
+  // Not sure why they use BigInt here, more then enough numbers to hold an IPv4 address
+  let start = Number(addr.startAddress().bigInteger())
+  let end = Number(addr.endAddress().bigInteger())
+  let numIps = (end - start)
+
+  // While typically the first and last IPs of a CIDR aren't used, the CIDR input here will likely not map to the real
+  // CIDR used for thee network at the destination.
+  let ips = []
+  for (let i = 0; i <= numIps; i++) {
+    ips.push(Address4.fromInteger(start + i).correctForm())
+  }
+  return ips
 }

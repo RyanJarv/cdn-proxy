@@ -1,4 +1,4 @@
-import { CloudFrontScanner } from "./CloudFrontScanner";
+import { CloudFrontScanner, textToIps } from "./CloudFrontScanner";
 const Readable = require('stream').Readable;
 
 function setupScanner(): CloudFrontScanner {
@@ -37,4 +37,17 @@ test('calling scan does not throw an error', () => {
   scanner.scan(['1.1.1.1'])
   expect(scanner.request).toBeCalledTimes(1)
   expect(scanner.request).toBeCalledWith('1.1.1.1')
+});
+
+test('calling textToIps with /32 results in single address', () => {
+  let resp = textToIps('1.1.1.1')
+  expect(resp.length).toBe(1)
+  expect(resp).toContain('1.1.1.1')
+});
+
+test('calling textToIps with /24 results in 255 addresses', () => {
+  let resp = textToIps('1.1.1.1/24')
+  expect(resp.length).toBe(256)
+  expect(resp[0]).toBe('1.1.1.0')
+  expect(resp[255]).toContain('1.1.1.255')
 });

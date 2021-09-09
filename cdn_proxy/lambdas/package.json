@@ -12,6 +12,7 @@
     "@types/react-dom": "^17.0.9",
     "@types/react-router-bootstrap": "^0.24.5",
     "@types/react-router-dom": "^5.1.8",
+    "ip-address": "^8.1.0",
     "react": "^17.0.2",
     "react-bootstrap": "^1.6.1",
     "react-dom": "^17.0.2",
