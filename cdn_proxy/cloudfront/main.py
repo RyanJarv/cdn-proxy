@@ -12,7 +12,7 @@ from cdn_proxy.lib import CdnProxyException, trim
 
 @dataclass
 class CloudFrontProxy:
-    id: str
+    distribution_id: str
     domain: str
 
 
@@ -40,7 +40,7 @@ class CloudFront:
         if proxy:
             raise CdnProxyException(
                 f"A deployment already exists. It can be accessed through the CloudFront "
-                f"distribution {proxy.id} with a URL of https://{proxy.domain} or "
+                f"distribution {proxy.distribution_id} with a URL of https://{proxy.domain} or "
                 f"http://{proxy.domain}."
             )
 
@@ -49,13 +49,11 @@ class CloudFront:
         yield f"Deployment completed."
 
     def delete(self):
-        try:
-            dist_id = self.__class__.status(self.sess).id
-            yield from self.delete_distribution(dist_id)
-        except KeyError:
+        status = self.status(self.sess)
+        if status:
+            yield from self.delete_distribution(status.distribution_id)
+        else:
             print("\n[ERROR] No existing deployment found.")
-
-        yield from self.delete_function()
 
         try:
             yield from self.delete_lambda_role()
@@ -76,7 +74,7 @@ class CloudFront:
             for item in tags_resp["Tags"]["Items"]:
                 if item["Key"] == "cdn-proxy-target":
                     return CloudFrontProxy(
-                        id=dist["Id"],
+                        distribution_id=dist["Id"],
                         domain=dist["DomainName"],
                     )
         return None
@@ -239,7 +237,7 @@ class CloudFront:
         yield f"Lambda {trim(self.lambda_function_name, 15)}... -- Deleting"
 
         # It seems deleting the versions first gets this process unstuck sometimes.
-        versions = self.get_lambda_versions(self.lambda_function_name)
+        versions = self.get_lambda_versions()
 
         # Append None to delete the main function.
         versions.append(None)
