@@ -2,7 +2,7 @@ import React from 'react';
 import {HashRouter, Route, Switch} from 'react-router-dom';
 import {LinkContainer} from 'react-router-bootstrap';
 
-import {Nav, Navbar, NavDropdown} from "react-bootstrap";
+import {Nav, Navbar, NavDropdown, Row} from "react-bootstrap";
 import Container from "react-bootstrap/Container";
 
 import './App.css';
@@ -56,15 +56,25 @@ const OurNavBarRouter = () => (
     <HashRouter>
         <Switch>
             <Route path="/help">
-                <OurNavBar name="Help" />
-                <Help/>
+                <Row>
+                    <OurNavBar name="Help" />
+                </Row>
+                <Row>
+                    <Help/>
+                </Row>
             </Route>
             <Route path="/scanner">
-                <OurNavBar name="Scanner" />
-                <Scanner/>
+                <Row>
+                    <OurNavBar name="Scanner" />
+                </Row>
+                <Row>
+                    <Scanner/>
+                </Row>
             </Route>
             <Route path="/">
-                <OurNavBar name="Home" />
+                <Row>
+                    <OurNavBar name="Home" />
+                </Row>
             </Route>
         </Switch>
     </HashRouter>

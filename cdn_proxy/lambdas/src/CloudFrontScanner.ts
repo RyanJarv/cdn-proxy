@@ -19,7 +19,7 @@ export class CloudFrontScanner {
   //  host headers. Only one host header is supported now, but later this list will include hosts we want to test for
   //  each ip/domain and scheme combination. This allows for brute forcing the domain when we have several we might be
   //  expecting.
-  public request(backendHost: string) {
+  public cdnRequest(backendHost: string): Promise<Response> {
     let hdrs = new Headers({
       'Cdn-Proxy-Origin': backendHost,
     })
@@ -30,14 +30,22 @@ export class CloudFrontScanner {
       hdrs.set('Cdn-Proxy-Host', backendHost)
     }
 
-    fetch(this.cdnProxy, {headers: hdrs})
-        .then(resp => console.log(resp.text()))
+    return fetch(this.cdnProxy, {headers: hdrs})
   }
 
-  public scan(backends: Array<string>) {
-    for (const i in backends) {
-      this.request(backends[i])
+  scan(
+      backends: Array<string>,
+      // onfulfilled?: ((value: Response) => PromiseLike<Response>) | undefined | null,
+      onfulfilled?: ((value: Response) => any),
+      onrejected?: ((reason: any) => any),
+  ) {
+    for (const backend of backends) {
+      this.cdnRequest(backend).then(onfulfilled, onrejected)
     }
+  }
+
+  public forEachResult(backends: Array<string>) {
+
   }
 }
 
