@@ -9,7 +9,7 @@ export class CloudFrontScanner {
     this.cdnProxy = cdnProxy;
 
     if (hostnames.length > 1) {
-      throw 'Using more then one hostname is not supported currently!'
+      throw new Error('Using more then one hostname is not supported currently!')
     }
     this.hostnames = hostnames;
   }
@@ -31,7 +31,7 @@ export class CloudFrontScanner {
     }
 
     fetch(this.cdnProxy, {headers: hdrs})
-        .then(resp => console.log(resp.body))
+        .then(resp => console.log(resp.text()))
   }
 
   public scan(backends: Array<string>) {
@@ -43,6 +43,7 @@ export class CloudFrontScanner {
 
 
 export function textToIps(input: string): Array<string> {
+  console.log("textToIps input: " + input)
   let addr: Address4 = new Address4(input)
 
   // Not sure why they use BigInt here, more then enough numbers to hold an IPv4 address
