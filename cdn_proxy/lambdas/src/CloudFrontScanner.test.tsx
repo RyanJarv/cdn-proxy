@@ -16,7 +16,7 @@ test('calling request does not throw an error', () => {
   jest.spyOn(global, "fetch").mockImplementation(() =>
       Promise.resolve(new Response(Readable.from('asdf')))
   );
-  scanner.request('1.1.1.1')
+  scanner.cdnRequest('1.1.1.1')
   expect(fetch).toBeCalledTimes(1)
   expect(fetch).toBeCalledWith('cdn-proxy.cloudfront.net', {
     headers: expect.any(Headers),
@@ -31,12 +31,12 @@ test('calling request does not throw an error', () => {
 
 test('calling scan does not throw an error', () => {
   let scanner = setupScanner()
-  jest.spyOn(scanner, "request").mockImplementation((backendHost: string) =>
+  jest.spyOn(scanner, "cdnRequest").mockImplementation((backendHost: string) =>
       Promise.resolve(new Response(Readable.from('asdf')))
   );
   scanner.scan(['1.1.1.1'])
-  expect(scanner.request).toBeCalledTimes(1)
-  expect(scanner.request).toBeCalledWith('1.1.1.1')
+  expect(scanner.cdnRequest).toBeCalledTimes(1)
+  expect(scanner.cdnRequest).toBeCalledWith('1.1.1.1')
 });
 
 test('calling textToIps with /32 results in single address', () => {
