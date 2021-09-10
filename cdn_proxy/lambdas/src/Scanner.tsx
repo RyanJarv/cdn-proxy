@@ -1,27 +1,26 @@
-import React, {FormEvent, FormEventHandler, MouseEventHandler, useState} from "react";
-import {Button, Col, Form, Row} from "react-bootstrap";
+import React, {ChangeEvent, FormEvent, useState} from "react";
+import {Button, Form, Row} from "react-bootstrap";
 import Container from "react-bootstrap/Container";
 import {CloudFrontScanner, textToIps} from "./CloudFrontScanner";
 
-
-function simulateNetworkRequest() {
-  return new Promise((resolve) => setTimeout(resolve, 2000));
-}
 
 function Scanner() {
 
     const [isLoading, setLoading] = useState(false);
 
     const [ipRange, setIpRange] = useState("");
-    const [scanner, _] = useState(new CloudFrontScanner(window.location.hostname));
+    const [scanner,] = useState(new CloudFrontScanner(window.location.hostname));
 
     return <Container>
         <Row>
             <Form>
-              <Form.Group className="mb-3" controlId="formBasicEmail">
-                <Form.Label>Email address</Form.Label>
-                <Form.Control type="email" placeholder="IP Range" />
-                <Form.Text className="text-muted" onChange={(e: FormEvent<HTMLElement>) => setIpRange(e.currentTarget.innerText)}>
+              <Form.Group className="mb-3" controlId="formBasicEmail"  >
+                <Form.Label>IPs to Scan</Form.Label>
+                <Form.Control type="text" placeholder="IP CIDR" onChange={(e: ChangeEvent<HTMLInputElement>) => {
+                    setIpRange(e.currentTarget.value);
+                    console.log("ipRange: " + ipRange);
+                }} />
+                <Form.Text>
                   Enter the IP range to scan in CIDR notation.
                 </Form.Text>
               </Form.Group>
