@@ -1,15 +1,12 @@
-import React, {ChangeEvent, FormEvent, useState} from "react";
-import {Button, Col, Form, Row, Table} from "react-bootstrap";
+import React, {ChangeEvent, useState} from "react";
+import {Button, Col, Form, Row} from "react-bootstrap";
 import Container from "react-bootstrap/Container";
 import {CloudFrontScanner, textToIps} from "./CloudFrontScanner";
 import BootstrapTable from 'react-bootstrap-table-next';
 
 const columns = [{
-  dataField: 'id',
-  text: 'Product ID'
-}, {
-  dataField: 'url',
-  text: 'URL'
+  dataField: 'origin',
+  text: 'Origin'
 }, {
   dataField: 'result',
   text: 'Result'
@@ -17,11 +14,9 @@ const columns = [{
 
 
 function Scanner() {
-    // const [isLoading, setLoading] = useState(false);
-
     const [ipRange, setIpRange] = useState("");
     const [scanner,] = useState(new CloudFrontScanner(window.location.hostname));
-    let [products, setProducts] = useState<Array<{ id: Number, url: string; result: string; }>>([]);
+    let [products, setProducts] = useState<Array<{ id: Number, origin: string; result: string; }>>([]);
 
 
     return <Container>
@@ -31,27 +26,23 @@ function Scanner() {
                         <Button
                             variant="primary"
                             type="submit"
-                            // className="scan-shit"
-                            // disabled={isLoading}
                             onClick={() => {
-                                scanner.scan(
-                                    textToIps(ipRange),
-                                    (resp) => {
-                                        console.log("response is: " + JSON.stringify(resp));
-                                        console.log("products currently is: " + JSON.stringify(products));
-                                        setProducts((prev) => {
-                                            prev.push({
-                                                'id': products.length,
-                                                'url': resp.url,
-                                                'result': resp.status.toString(),
-                                            }); return prev
-                                        })
-                                    },
-                                    (resp) => {
-                                        console.log(resp);
-                                    }
-                                );
-                                // setLoading(true);
+                                for (const ip of textToIps(ipRange)) {
+                                    scanner.cdnRequest(ip).then((resp) => {
+                                            setProducts((prev) => {
+                                                let prevCopy = prev.slice()
+                                                prevCopy.push({
+                                                    'id': products.length,
+                                                    'origin': ip,
+                                                    'result': resp.status.toString(),
+                                                }); return prevCopy
+                                            })
+                                        },
+                                        (resp) => {
+                                            console.log(resp);
+                                        }
+                                    );
+                                }
                             }}
                         >
                             Submit
@@ -63,8 +54,6 @@ function Scanner() {
                           {/*<Form.Label>IPs to Scan</Form.Label>*/}
                           <Form.Control type="text" placeholder="IP CIDR" onChange={(e: ChangeEvent<HTMLInputElement>) => {
                               setIpRange(e.currentTarget.value);
-                              console.log("ipRange: " + ipRange);
-                              console.log("products: " + JSON.stringify(products));
                           }} />
                           <Form.Text>
                             Enter the IP range to scan in CIDR notation.
