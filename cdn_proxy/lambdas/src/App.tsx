@@ -2,27 +2,13 @@ import React from 'react';
 import {HashRouter, Route, Switch} from 'react-router-dom';
 import {LinkContainer} from 'react-router-bootstrap';
 
-import {Nav, Navbar, NavDropdown, Row} from "react-bootstrap";
+import {Nav, Navbar, Row} from "react-bootstrap";
 import Container from "react-bootstrap/Container";
 
 import './App.css';
 import Help from "./Help";
 import Scanner from "./Scanner";
 
-// // Example POST method implementation:
-// async function proxyReq(url = '', data = {}) {
-//     // Default options are marked with *
-//     const response = await fetch(url, {
-//         method: 'GET',
-//         headers: {
-//             'Cdn-Proxy-Origin': 'www.wikipedia.org',
-//             'Cdn-Proxy-Host': 'www.wikipedia.org'
-//         },
-//         redirect: 'error', // manual, *follow, error
-//     });
-//     return response.json(); // parses JSON response into native JavaScript objects
-// }
-//
 const OurNavBar = (props: any) => (
     <Navbar bg="light" expand="lg">
         <Container>
@@ -36,16 +22,6 @@ const OurNavBar = (props: any) => (
                     <LinkContainer to="/scanner">
                         <Nav.Link>Scanner</Nav.Link>
                     </LinkContainer>
-                    <LinkContainer to="/help">
-                        <Nav.Link>Help</Nav.Link>
-                    </LinkContainer>
-                    <NavDropdown title="Dropdown" id="basic-nav-dropdown">
-                        <NavDropdown.Item href="#action/3.1">Action</NavDropdown.Item>
-                        <NavDropdown.Item href="#action/3.2">Another action</NavDropdown.Item>
-                        <NavDropdown.Item href="#action/3.3">Something</NavDropdown.Item>
-                        <NavDropdown.Divider />
-                        <NavDropdown.Item href="#action/3.4">Separated link</NavDropdown.Item>
-                    </NavDropdown>
                 </Nav>
             </Navbar.Collapse>
         </Container>
@@ -55,14 +31,6 @@ const OurNavBar = (props: any) => (
 const OurNavBarRouter = () => (
     <HashRouter>
         <Switch>
-            <Route path="/help">
-                <Row>
-                    <OurNavBar name="Help" />
-                </Row>
-                <Row>
-                    <Help/>
-                </Row>
-            </Route>
             <Route path="/scanner">
                 <Row>
                     <OurNavBar name="Scanner" />
@@ -74,6 +42,9 @@ const OurNavBarRouter = () => (
             <Route path="/">
                 <Row>
                     <OurNavBar name="Home" />
+                </Row>
+                <Row>
+                    <Help/>
                 </Row>
             </Route>
         </Switch>

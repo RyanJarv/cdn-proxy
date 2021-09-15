@@ -35,23 +35,17 @@ export class CloudFrontScanner {
 
   scan(
       backends: Array<string>,
-      // onfulfilled?: ((value: Response) => PromiseLike<Response>) | undefined | null,
-      onfulfilled?: ((value: Response) => any),
+      onfulfilled?: ((resp: Response) => any),
       onrejected?: ((reason: any) => any),
   ) {
     for (const backend of backends) {
       this.cdnRequest(backend).then(onfulfilled, onrejected)
     }
   }
-
-  public forEachResult(backends: Array<string>) {
-
-  }
 }
 
 
 export function textToIps(input: string): Array<string> {
-  console.log("textToIps input: " + input)
   let addr: Address4 = new Address4(input)
 
   // Not sure why they use BigInt here, more then enough numbers to hold an IPv4 address
