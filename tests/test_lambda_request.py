@@ -102,6 +102,11 @@ def test_main_querystring():
 
 def test_help():
     _headers = copy(headers)
+    request = {
+        'headers': _headers,
+        'querystring': '',
+        'origin': origin,
+    }
     with pytest.raises(CDNProxyError):
-        os.chdir(Path(__file__).parents[1] / "cdn_proxy/cloudfront/req_lambda")
-        main(_headers, origin)
+        os.chdir(Path(__file__).parents[1] / "cdn_proxy/cloudfront/req_lambda/build/")
+        main(request)
