@@ -15,7 +15,7 @@ const columns = [{
 
 function Scanner() {
     const [ipRange, setIpRange] = useState("");
-    const [scanner,] = useState(new CloudFrontScanner(window.location.hostname));
+    const [scanner,] = useState(new CloudFrontScanner(window.location.protocol + '//' + window.location.hostname));
     let [products, setProducts] = useState<Array<{ id: Number, origin: string; result: string; }>>([]);
 
 
@@ -29,6 +29,8 @@ function Scanner() {
                             onClick={() => {
                                 for (const ip of textToIps(ipRange)) {
                                     scanner.cdnRequest(ip).then((resp) => {
+                                            console.log("got successful response from " + ip);
+                                            console.log(resp);
                                             setProducts((prev) => {
                                                 let prevCopy = prev.slice()
                                                 prevCopy.push({
@@ -39,7 +41,16 @@ function Scanner() {
                                             })
                                         },
                                         (resp) => {
+                                            console.log("got error response from " + ip);
                                             console.log(resp);
+                                            setProducts((prev) => {
+                                                let prevCopy = prev.slice()
+                                                prevCopy.push({
+                                                    'id': products.length,
+                                                    'origin': ip,
+                                                    'result': "request failed",
+                                                }); return prevCopy
+                                            })
                                         }
                                     );
                                 }
