@@ -19,7 +19,11 @@ cloudflare = "^2.8.15"
 pytest = "^6.2.4"
 moto = {extras = ["lambda", "iam"], version = "^2.2.3"}
 docker = "^5.0.0"
+<<<<<<< Updated upstream
 black = "^21.7b0"
+=======
+pylint = "^2.10.2"
+>>>>>>> Stashed changes
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]

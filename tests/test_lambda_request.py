@@ -4,7 +4,7 @@ from copy import copy
 from pathlib import Path
 
 import pytest
-from cdn_proxy.lambdas.request.main import (
+from cdn_proxy.cloudfront.req_lambda.main import (
     hostname_for_ip,
     main,
     random_ip,
@@ -72,18 +72,36 @@ def test_random_ip():
     assert ip1 != ip2
 
 
-def test_main():
+def test_main_headers():
     _headers = copy(headers)
     _headers["cdn-proxy-origin"] = [{"key": "Cdn-Proxy-Origin", "value": "52.4.10.14"}]
     _headers["cdn-proxy-host"] = [{"key": "Cdn-Proxy-Host", "value": "test-host"}]
-    headers_resp, origin_resp = main(_headers, origin)
-    assert origin_resp["domainName"] == "52-4-10-14.sslip.io"
-    assert len(headers_resp["host"]) == 1
-    assert headers_resp["host"][0]["value"] == "test-host"
+    request = {
+        'headers': _headers,
+        'querystring': '',
+        'origin': origin,
+    }
+    main(request)
+    assert request["origin"]["custom"]["domainName"] == "52-4-10-14.sslip.io"
+    assert len(request["headers"]["host"]) == 1
+    assert request["headers"]["host"][0]["value"] == "test-host"
+
+
+def test_main_querystring():
+    _headers = copy(headers)
+    request = {
+        'headers': _headers,
+        'querystring': 'cdn-proxy-origin=52.4.10.14&cdn-proxy-host=test-host',
+        'origin': origin,
+    }
+    main(request)
+    assert request["origin"]["custom"]["domainName"] == "52-4-10-14.sslip.io"
+    assert len(request["headers"]["host"]) == 1
+    assert request["headers"]["host"][0]["value"] == "test-host"
 
 
 def test_help():
     _headers = copy(headers)
     with pytest.raises(CDNProxyError):
-        os.chdir(Path(__file__).parents[1] / "cdn_proxy/lambdas/request")
+        os.chdir(Path(__file__).parents[1] / "cdn_proxy/cloudfront/req_lambda")
         main(_headers, origin)
