@@ -40,7 +40,16 @@ def lambda_handler(event, context):
     print("event: " + json.dumps(event))
     request = event["Records"][0]["cf"]["request"]
 
-    main(request)
+    try:
+        main(request)
+    except CDNProxyError as e:
+        return {
+            "body": " ".join(e.args),
+            "bodyEncoding": "text",
+            "headers": {},
+            "status": "400",
+            "statusDescription": "Bad Request",
+        }
 
     return request
 
