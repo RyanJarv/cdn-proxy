@@ -10,7 +10,7 @@ import botocore.exceptions
 from cdn_proxy.lib import CdnProxyException, trim
 
 # All JS and CSS is compiled into index.html, this just makes it easier to deploy and serve from the lambda.
-STATIC_PAGE = Path(__file__).parent/'lambda/build/index.html'
+STATIC_PAGE = Path(__file__).parent/'req_lambda/build/index.html'
 
 @dataclass
 class CloudFrontProxy:
@@ -167,7 +167,7 @@ class CloudFront:
 
         zip = io.BytesIO()
         with zipfile.ZipFile(zip, "w", zipfile.ZIP_DEFLATED) as zip_file:
-            main = Path(__file__).parent / "lambda/main.py"
+            main = Path(__file__).parent / "req_lambda/main.py"
             with open(main, "r") as f:
                 source_code = f.read()
             zip_file.writestr("main.py", source_code)
