@@ -1,7 +1,9 @@
 import sys
 import queue
+
 import urllib3
 import concurrent.futures
+import botocore.exceptions
 
 from dataclasses import dataclass
 from enum import Enum
@@ -47,7 +49,16 @@ def _check_status(resp: Union[requests.Response, "SvcState"]) -> "SvcState":
 
 class CloudFrontScanner(CloudFront):
     def __init__(self, *args, workers: int = 20, timeout: int = 15, **kwargs):
-        super().__init__(*args, **kwargs)
+        self.distribution = None
+
+        try:
+            super().__init__(*args, **kwargs)
+        except botocore.exceptions.ClientError as e:
+            if e.response['Error']['Code'] == 'ExpiredToken':
+                print('[WARNING] Found expired AWS credentials.')
+            else:
+                raise e
+
         print('# of workers: ' + str(workers), flush=True)
         print('Timeout in secs: ' + str(timeout), flush=True)
         self.sem: queue.Queue = queue.Queue(maxsize=workers)
