@@ -1,6 +1,3 @@
-from enum import Enum
-import boto3
-
 import typer
 
 from cdn_proxy.cloudflare import CloudFlare
@@ -11,7 +8,7 @@ app = typer.Typer(
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
-cloudflare: CloudFlare = None
+cloudflare: CloudFlare
 
 
 @app.callback()
