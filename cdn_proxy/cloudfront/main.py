@@ -30,9 +30,9 @@ class CloudFront:
         self.domain_name = None
 
         try:
-            self.distribution: Optional[CloudFrontProxy] = self.status(sess)
+            self.distribution = self.status(sess)
         except IndexError:
-            self.distribution: Optional[CloudFrontProxy] = None
+            self.distribution = None
 
     def create(self):
         proxy = self.status(self.sess)

@@ -1,5 +1,6 @@
 import asyncio
-from typing import List
+from pathlib import Path
+from typing import List, Optional
 
 import boto3
 
@@ -7,7 +8,6 @@ import typer
 
 from cdn_proxy.cloudfront import CloudFront
 from cdn_proxy.cloudfront.scanner import CloudFrontScanner
-from cdn_proxy.lib import networks_to_hosts
 
 app = typer.Typer(
     name="cloudfront",
@@ -58,10 +58,10 @@ def create():
 @app.command()
 def scan(
     workers: int = typer.Option(20, help="Max concurrent workers."),
-    host: str = typer.Option(None, help="Optional device name to limit snapshots to."),
-    targets: List[str] = typer.Argument(
-        ..., help="Optional device name to limit snapshots to."
-    ),
+    timeout: int = typer.Option(15, help="Request timeout in seconds."),
+    host: str = typer.Option('', help="Optional device name to limit snapshots to."),
+    cdn_proxy: Optional[str] = typer.Option(None, help="Optional device name to limit snapshots to."),
+    targets: List[str] = typer.Argument(None, help="Optional device name to limit snapshots to."),
 ):
     """
     Create a new CloudFront distribution and Lambda@Edge function targeting the specified origin.
@@ -71,17 +71,8 @@ def scan(
 
     The X-Forwarded-For header will be also set to a random IP address by the Lambda@Edge function.
     """
-    asyncio.run(_scan(host, targets, workers))
-
-
-async def _scan(host, targets, workers):
-    async with CloudFrontScanner(sess, workers=workers) as scan:
-        tasks = []
-        with typer.progressbar(list(networks_to_hosts(targets)), label=f"Scanning") as progress:
-            for origin in progress:
-                tasks.append(scan.scan(origin, host))
-
-        await asyncio.gather(*tasks)
+    scan = CloudFrontScanner(sess, workers=workers, timeout=timeout)
+    scan.scan(targets, host, cdn_proxy)
 
 
 @app.command()

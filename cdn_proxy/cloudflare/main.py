@@ -1,5 +1,6 @@
 import json
 import re
+from typing import List
 
 import CloudFlare as api
 
@@ -32,9 +33,7 @@ class CloudFlare:
         yield "CloudFront Proxy {} -- Created".format(target)
 
     def delete(self, target):
-        yield "CloudFront Proxy -- Retrieving records for {}.{}".format(
-            target, "cdn-bypass-{}".format(target), self.zone_name
-        )
+        yield "CloudFront Proxy -- Retrieving records for {}.{}".format(target, self.zone_name)
         dns_records = self.cf.zones.dns_records.get(
             self.zone_id,
             params={
@@ -58,7 +57,7 @@ class CloudFlare:
 
     def list(self):
         page = 1
-        subdomains = []
+        subdomains: List[dict] = []
         while page == 1 or subdomains:
             subdomains = self.cf.zones.dns_records.get(
                 self.zone_id, params={"per_page": 100, "page": page}

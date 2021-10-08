@@ -10,6 +10,8 @@ dev/run:
 lint:
 	pylint --rcfile=.pylint.ini cdn_proxy
 
+mypy:
+	mypy cdn_proxy
+
 test:
 	python3 -m pytest ./tests/test_unit.py ./tests/test_lambda_request.py
-

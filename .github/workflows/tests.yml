@@ -17,6 +17,9 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -r requirements.txt
         python -m pip install -r requirements-dev.txt
-    - name: Analysing the code with pylint
+    - name: MyPy Type Checking
+      run: |
+        make test
+    - name: Running PyTest Tests
       run: |
         make test

@@ -6,7 +6,7 @@ import boto3
 from moto import mock_iam, mock_lambda
 
 from cdn_proxy.cloudfront import CloudFront, CloudFrontProxy
-from cdn_proxy.lib import trim, networks_to_hosts
+from cdn_proxy.lib import trim, targets_to_hosts
 
 
 @pytest.fixture(scope="module")
@@ -71,7 +71,7 @@ def test_trim():
 
 
 def test_networks_to_hosts():
-    assert list(networks_to_hosts(["192.168.0.1/32", "192.168.1.0/30"])) == [
+    assert list(targets_to_hosts(["192.168.0.1/32", "192.168.1.0/30"])) == [
         "192.168.0.1",
         "192.168.1.1",
         "192.168.1.2",

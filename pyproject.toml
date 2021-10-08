@@ -14,16 +14,16 @@ botocore = "^1.21.25"
 boto3 = "^1.18.25"
 typer = "^0.3.2"
 cloudflare = "^2.8.15"
+requests = "^2.26.0"
+urllib3 = "^1.26.7"
 
 [tool.poetry.dev-dependencies]
 pytest = "^6.2.4"
 moto = {extras = ["lambda", "iam"], version = "^2.2.3"}
 docker = "^5.0.0"
-<<<<<<< Updated upstream
-black = "^21.7b0"
-=======
 pylint = "^2.10.2"
->>>>>>> Stashed changes
+mypy = "^0.910"
+types-requests = "^2.25.9"
 
 [build-system]
 requires = ["poetry-core>=1.0.0"]
