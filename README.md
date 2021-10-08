@@ -83,6 +83,37 @@ In addition to making requests manually with curl you can use the CDN Proxy's [B
 to proxy all Burp requests through the CloudFront proxy. Among other things this allows you to browse any sites only
 exposed to CloudFront IPs like you normally would through the built in Burp browser.
 
+Since it's possible to dynamically set the backend per request with the CloudFront deployment we can iterate through
+a list of IP's comparing HTTP responses (or lack of) directly vs through the proxy fairly quickly. If we can't reach the IP
+directly but can through the proxy then we know IP allowlisting to the CloudFront network is in effect.
+
+Below is the output of scanning origins through CloudFront.
+
+
+```
+% cdn-proxy cloudfront scan ./ips.txt
+# of workers: 20
+Timeout in secs: 15
+1.1.1.1 (Host: 1.1.1.1) -- Proxy: open / Origin: open
+1.1.1.2 (Host: 1.1.1.2) -- Proxy: open / Origin: open
+1.1.1.3 (Host: 1.1.1.3) -- Proxy: open / Origin: open
+1.1.1.4 (Host: 1.1.1.4) -- Proxy: closed / Origin: closed
+1.1.1.5 (Host: 1.1.1.5) -- Proxy: closed / Origin: closed
+1.1.1.6 (Host: 1.1.1.6) -- Proxy: closed / Origin: closed
+1.1.1.7 (Host: 1.1.1.7) -- Proxy: closed / Origin: closed
+1.1.1.8 (Host: 1.1.1.8) -- Proxy: closed / Origin: closed
+1.1.1.9 (Host: 1.1.1.9) -- Proxy: closed / Origin: closed
+1.1.1.10 (Host: 1.1.1.10) -- Proxy: closed / Origin: closed
+```
+
+If the scan subcommand finds a valid file path as one of the arguments, cdn-proxy will search the file for IPs
+or CIDRs and scan each one found. This means you can simply point it to any text file that may contain configuration
+data, for example a terraform config file, it will pull out the valid IPs and CIDRs from it for scanning.
+
+Otherwise, if the argument is not a valid file, it should be file or CIDR to be scanned. Multiple arguments can be
+passed, as well as types mixed, so IPs, CIDRs, and file paths can all be specified in the same command.
+
+
 #### Caveats
 
 For the CloudFront module the target must be a hostname, this is a restriction in CloudFront on origin values of a
@@ -111,6 +142,23 @@ Commands:
   scan    HTTP scan of IP's both directly and via proxy...
 ```
 
+
+```
+Usage: cdn_proxy cloudfront scan [OPTIONS] [TARGETS]...
+
+  HTTP scan of targets both directly and through the deployed proxy distribution.
+
+Arguments:
+  TARGETS...  List of IPs, CIDRs, or file paths (containing IPs or CIDRs)
+
+Options:
+  --workers INTEGER  Max concurrent workers.  [default: 20]
+  --timeout INTEGER  Request timeout in seconds.  [default: 15]
+  --host TEXT        String to set the host headert to, defaults to the origin being scanned.
+  --cdn-proxy TEXT   CDN Proxy domain name, if it can not be determened automatically.
+  -h, --help         Show this message and exit.
+```
+
 ### CloudFlare
 
 #### Overview
@@ -127,35 +175,6 @@ hosting the website you're targeting.
 You can work around this limitation if you have an enterprise CloudFlare account. This is not handled by cdn-proxy
 currently, however you can configure this manually using a transform rule in your zone configuration. If you want to
 see support for this added to cdn-proxy let us know in a GitHub issue.
-
-#### Scan
-
-Since it's possible to dynamically set the backend per request with the CloudFront deployment we can iterate through
-a list of IP's comparing HTTP responses (or lack of) directly vs through the proxy. If we can't reach the IP directly
-but can through the proxy then we know IP allowlisting to the CloudFront network is in effect.
-
-```
-% cdn-proxy cloudfront scan ./ips.txt
-# of workers: 20
-Timeout in secs: 15
-1.1.1.1 (Host: 1.1.1.1) -- Proxy: open / Origin: open
-1.1.1.2 (Host: 1.1.1.2) -- Proxy: open / Origin: open
-1.1.1.3 (Host: 1.1.1.3) -- Proxy: open / Origin: open
-1.1.1.4 (Host: 1.1.1.4) -- Proxy: closed / Origin: closed
-1.1.1.5 (Host: 1.1.1.5) -- Proxy: closed / Origin: closed
-1.1.1.6 (Host: 1.1.1.6) -- Proxy: closed / Origin: closed
-1.1.1.7 (Host: 1.1.1.7) -- Proxy: closed / Origin: closed
-1.1.1.8 (Host: 1.1.1.8) -- Proxy: closed / Origin: closed
-1.1.1.9 (Host: 1.1.1.9) -- Proxy: closed / Origin: closed
-1.1.1.10 (Host: 1.1.1.10) -- Proxy: closed / Origin: closed
-```
-
-If the scan subcommand finds a valid file path as one of the arguments, cdn-proxy will search the file for IPs
-or CIDRs and scan each one found. This means you can simply point it to any text file that may contain configuration
-data, for example a terraform config file, it will pull out the valid IPs and CIDRs from it for scanning.
-
-Otherwise, if the argument is not a valid file, it should be file or CIDR to be scanned. Multiple arguments can be
-passed, as well as types mixed, so IPs, CIDRs, and file paths can all be specified in the same command.
 
 
 #### Usage
