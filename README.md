@@ -19,13 +19,23 @@ disabled.
 
 ## Overview
 
-If an attacker has the origin IP of an application they may be able to bypass the CDN by making requests to the IP
-itself, side stepping any protections that the CDN provides. A common response to this is to IP whitelist the CDN range
-on the origin server, preventing these type of CDN bypasses.
+cdn-proxy is a set of tools for bypassing IP allow listing intended to restrict origin access to requests originating
+from shared CDNs.
 
-This fix however is incomplete, it can be bypassed by setting up a second account on the CDN routing requests to the
-same origin. Security protections on this second account can be disabled, sidestepping any protections on the real
-account in a similar way to the original issue.
+Bypassing protections at the CDN layer through direct access is well documented, however a common response to prevent
+the issue is to set up IP allow listing from the CDNs shared network range. Because shared CDNs use a common pool of
+IPs for origin requests these IP restrictions can be bypassed by routing traffic through a second attacker controlled
+distribution on the same network.
+
+When configuration of this second (proxy) distribution is controlled by the attacker requests are not subject to the
+same security requirements as the intended distribution. WAFs, ratelimiting, filtering, and any authentication
+implemented in the intended distribution will not apply for requests passing through the proxy distribution.
+
+Requests passing through the distribution may also be controlled by the attacker to some extend, however this depends
+largely on configuration options available. In the case of CloudFront some parts of the request as well as the intended
+origin can be controlled by code in a Lambda@Edge function, this allows for controlling the X-Forwarded-For header
+potentially allowing for IPs to be spoofed in the backend web app as well as quickly scanning a large number of origins
+to determine if they are susceptible to this attack.
 
 ![CDN Proxy Diagram](./docs/cdn-proxy-diagram.png)
 
@@ -175,6 +185,35 @@ hosting the website you're targeting.
 You can work around this limitation if you have an enterprise CloudFlare account. This is not handled by cdn-proxy
 currently, however you can configure this manually using a transform rule in your zone configuration. If you want to
 see support for this added to cdn-proxy let us know in a GitHub issue.
+
+#### Scan
+
+Since it's possible to dynamically set the backend per request with the CloudFront deployment we can iterate through
+a list of IP's comparing HTTP responses (or lack of) directly vs through the proxy. If we can't reach the IP directly
+but can through the proxy then we know IP allowlisting to the CloudFront network is in effect.
+
+```
+% cdn-proxy cloudfront scan ./ips.txt
+# of workers: 20
+Timeout in secs: 15
+1.1.1.1 (Host: 1.1.1.1) -- Proxy: open / Origin: open
+1.1.1.2 (Host: 1.1.1.2) -- Proxy: open / Origin: open
+1.1.1.3 (Host: 1.1.1.3) -- Proxy: open / Origin: open
+1.1.1.4 (Host: 1.1.1.4) -- Proxy: closed / Origin: closed
+1.1.1.5 (Host: 1.1.1.5) -- Proxy: closed / Origin: closed
+1.1.1.6 (Host: 1.1.1.6) -- Proxy: closed / Origin: closed
+1.1.1.7 (Host: 1.1.1.7) -- Proxy: closed / Origin: closed
+1.1.1.8 (Host: 1.1.1.8) -- Proxy: closed / Origin: closed
+1.1.1.9 (Host: 1.1.1.9) -- Proxy: closed / Origin: closed
+1.1.1.10 (Host: 1.1.1.10) -- Proxy: closed / Origin: closed
+```
+
+If the scan subcommand finds a valid file path as one of the arguments, cdn-proxy will search the file for IPs
+or CIDRs and scan each one found. This means you can simply point it to any text file that may contain configuration
+data, for example a terraform config file, it will pull out the valid IPs and CIDRs from it for scanning.
+
+Otherwise, if the argument is not a valid file, it should be file or CIDR to be scanned. Multiple arguments can be
+passed, as well as types mixed, so IPs, CIDRs, and file paths can all be specified in the same command.
 
 
 #### Usage
