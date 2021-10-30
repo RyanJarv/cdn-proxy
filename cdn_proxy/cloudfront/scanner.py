@@ -13,7 +13,7 @@ import requests
 import requests.adapters
 
 from requests import Session
-from requests.exceptions import ConnectionError, ConnectTimeout, TooManyRedirects, Timeout
+from requests.exceptions import ConnectionError, ConnectTimeout, TooManyRedirects, Timeout, ReadTimeout
 
 from cdn_proxy.cloudfront import CloudFront
 from cdn_proxy.lib import targets_to_hosts
@@ -72,7 +72,7 @@ class CloudFrontScanner(CloudFront):
 
     def scan(self, targets: List[str], host: str = '', cdn_proxy: Optional[str] = None):
         try:
-            origins = list(targets_to_hosts(targets))
+            origins = targets_to_hosts(targets)
         except ValueError as e:
             print("[ERROR] " + e.args[0])
             sys.exit(101)
@@ -120,16 +120,17 @@ class CloudFrontScanner(CloudFront):
             hdrs = {}
         try:
             return self.requests.get(f"https://{server}", headers=hdrs, timeout=self.timeout, verify=False)
-        except TooManyRedirects:
-            return SvcState.OPEN
         except (ConnectionError, ConnectTimeout, Timeout):
             return SvcState.FILTERED
+        # Most exceptions are caused by invalid responses, the port can be considered open in many of these cases.
+        except requests.exceptions.RequestException:
+            return SvcState.OPEN_FAIL
         except Exception as e:
             print("** WARNING **")
             print("  unhandled exception, the following exception needs to be handled")
             print("  type(e): " + str(type(e)))
             print("  e: " + str(e))
-            print("  ' '.join(e.args): " + ' '.join(e.args))
+            print("  ' '.join(map(str, e.args)): " + ' '.join(map(str, e.args)))
             return SvcState.CLIENT_FAILED
 
 
@@ -147,6 +148,7 @@ class ScanResult:
 class SvcState(Enum):
     CLIENT_FAILED = "unknown (client failed)"
     OPEN = "open"
-    OPEN_SERV_FAIL = "open (server failed)"
+    OPEN_FAIL = "open (w/ unknown failure)"
+    OPEN_SERV_FAIL = "open (w/ server failure)"
     CLOSED = "closed"
     FILTERED = "closed"
