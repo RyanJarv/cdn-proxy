@@ -71,7 +71,7 @@ class CloudFront:
     def status(sess) -> Optional[CloudFrontProxy]:
         client = sess.client("cloudfront")
         resp = client.list_distributions()
-        for dist in resp["DistributionList"]["Items"]:
+        for dist in resp.get("DistributionList", {}).get("Items", []):
             tags_resp = client.list_tags_for_resource(Resource=dist["ARN"])
             for item in tags_resp["Tags"]["Items"]:
                 if item["Key"] == "cdn-proxy-target":
