@@ -14,7 +14,7 @@ RUN wget -O ngrok.zip https://bin.equinox.io/c/4VmDzA7iaHb/ngrok-stable-linux-am
 	cp ngrok /usr/local/bin
 
 # Copies your code file from your action repository to the filesystem path `/` of the container
-COPY github/entrypoint.sh /entrypoint.sh
+COPY ./entrypoint.sh /entrypoint.sh
 
 # Code file to execute when the docker container starts up (`entrypoint.sh`)
 ENTRYPOINT ["/entrypoint.sh"]
