@@ -4,7 +4,8 @@ FROM alpine:3.14
 RUN apk update && apk add --no-cache \
 	openssh-server \
 	wget \
-	openrc
+	openrc \
+	bash
 
 RUN sed -i -e 's/AllowTcpForwarding no/AllowTcpForwarding yes/' /etc/ssh/sshd_config && \
 	passwd -d root

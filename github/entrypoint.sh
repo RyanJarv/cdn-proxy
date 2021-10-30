@@ -1,4 +1,7 @@
 #!/bin/sh -l
+set -xv
+
+set -euo pipefail
 
 mkdir ~/.ssh && chmod 700 ~/.ssh
 
