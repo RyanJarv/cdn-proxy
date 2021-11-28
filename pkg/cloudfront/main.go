@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
+	"github.com/RyanJarv/cdn-proxy/lib"
 	"github.com/alitto/pond"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/service/cloudfront"
@@ -75,26 +76,13 @@ func NewScanner(proxyDomain string, maxWorkers, maxCapacity int) *CloudFrontScan
 		Pool:        pond.New(maxWorkers, maxCapacity),
 		Client: &http.Client{
 			Transport: &http.Transport{
-				TLSClientConfig:        &tls.Config{
-					InsecureSkipVerify:          true,
-					// Support everything we can
-					CipherSuites: []uint16{
-						tls.TLS_RSA_WITH_RC4_128_SHA, tls.TLS_RSA_WITH_3DES_EDE_CBC_SHA, tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-						tls.TLS_RSA_WITH_AES_256_CBC_SHA, tls.TLS_RSA_WITH_AES_128_CBC_SHA256, tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-						tls.TLS_RSA_WITH_AES_256_GCM_SHA384, tls.TLS_ECDHE_ECDSA_WITH_RC4_128_SHA, tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA,
-						tls.TLS_ECDHE_ECDSA_WITH_AES_256_CBC_SHA, tls.TLS_ECDHE_RSA_WITH_RC4_128_SHA, tls.TLS_ECDHE_RSA_WITH_3DES_EDE_CBC_SHA,
-						tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA, tls.TLS_ECDHE_RSA_WITH_AES_256_CBC_SHA, tls.TLS_ECDHE_ECDSA_WITH_AES_128_CBC_SHA256,
-						tls.TLS_ECDHE_RSA_WITH_AES_128_CBC_SHA256, tls.TLS_ECDHE_RSA_WITH_AES_128_GCM_SHA256, tls.TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256,
-						tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384, tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384, tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305_SHA256,
-						tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305_SHA256, tls.TLS_AES_128_GCM_SHA256, tls.TLS_AES_256_GCM_SHA384, tls.TLS_CHACHA20_POLY1305_SHA256,
-						tls.TLS_FALLBACK_SCSV, tls.TLS_ECDHE_RSA_WITH_CHACHA20_POLY1305, tls.TLS_ECDHE_ECDSA_WITH_CHACHA20_POLY1305,
-					},
-					MinVersion:                  0,
+				TLSClientConfig: &tls.Config{
+					InsecureSkipVerify: true,
+					CipherSuites:       lib.AllCiphers,
+					MinVersion:         0,
 				},
 			},
-			CheckRedirect: func(req *http.Request, via []*http.Request) error {
-				return fmt.Errorf("no redirects")
-			},
+			CheckRedirect: lib.NoRedirects,
 			Timeout: time.Second * 15,
 		},
 	}
