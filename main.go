@@ -101,10 +101,6 @@ func setUlimitOpenFiles(i uint64) {
 	}
 }
 
-
-
-
-
 func getTargets(args []string, submit func(req *http.Request)) {
 	for _, v := range args {
 		file, err := ioutil.ReadFile(v)
