@@ -19,13 +19,23 @@ disabled.
 
 ## Overview
 
-If an attacker has the origin IP of an application they may be able to bypass the CDN by making requests to the IP
-itself, side stepping any protections that the CDN provides. A common response to this is to IP whitelist the CDN range
-on the origin server, preventing these type of CDN bypasses.
+cdn-proxy is a set of tools for bypassing IP allow listing intended to restrict origin access to requests originating
+from shared CDNs.
 
-This fix however is incomplete, it can be bypassed by setting up a second account on the CDN routing requests to the
-same origin. Security protections on this second account can be disabled, sidestepping any protections on the real
-account in a similar way to the original issue.
+Bypassing protections at the CDN layer through direct access is well documented, however a common response to prevent
+the issue is to set up IP allow listing from the CDNs shared network range. Because shared CDNs use a common pool of
+IPs for origin requests these IP restrictions can be bypassed by routing traffic through a second attacker controlled
+distribution on the same network.
+
+When configuration of this second (proxy) distribution is controlled by the attacker requests are not subject to the
+same security requirements as the intended distribution. WAFs, ratelimiting, filtering, and any authentication
+implemented in the intended distribution will not apply for requests passing through the proxy distribution.
+
+Requests passing through the distribution may also be controlled by the attacker to some extend, however this depends
+largely on configuration options available. In the case of CloudFront some parts of the request as well as the intended
+origin can be controlled by code in a Lambda@Edge function, this allows for controlling the X-Forwarded-For header
+potentially allowing for IPs to be spoofed in the backend web app as well as quickly scanning a large number of origins
+to determine if they are susceptible to this attack.
 
 ![CDN Proxy Diagram](./docs/cdn-proxy-diagram.png)
 
