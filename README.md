@@ -10,9 +10,8 @@ disabled.
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
 - [Installation](#installation)
-- [Usage](#usage)
-  - [CloudFront](#cloudfront)
-  - [CloudFlare](#cloudflare)
+- [CloudFront](#cloudfront)
+- [CloudFlare](#cloudflare)
 - [Burp Suite Extension](#burp-suite-extension)
 - [Support](#support)
 - [Contributing](#contributing)
@@ -46,176 +45,89 @@ https://user-images.githubusercontent.com/4079939/130310987-3ad7e7b4-db7f-4a6e-b
 
 * CloudFlare or CloudFront is used to filter or restrict traffic.
   * This likely applies to other CDNs as well, this is just what is supported currently.
-* You know the origin IP (the one behind the CDN).
-* IP whitelisting is used to restrict access to the origin.
-  * If you can access the origin directly this tool isn't needed.
+* You know the origin (backend) IP.
+  * [cdn-scanner](#cdn-scanner) can be used to find origins which are only accessible through the CDN network.
+* The origin allows access from the Shared IP range used by the CDN network.
 
-Additionally, in the case of CloudFlare, the origin web app uses a default virtual host to serve the website, or you
-have access to an enterprise CloudFlare account.
+Additionally, in the case of CloudFlare, the origin web app uses a default virtual host to serve the website. It should
+be possible to perform this attack when this is not the case when you have access to a Enterprise CloudFlare account however
+this is not supported by cdn-proxy currently. To do this manually you need to ensure the CloudFlare configuration correctly
+sets the host header as the request passes through the CloudFlare network..
 
-## Installation
+## cdn-proxy
 
-Currently, you can use pip to install directly from this repo.
+### Installation
 
 ```sh
-python3 -m venv venv
-pip3 install git+ssh://git@github.com/RhinoSecurityLabs/cdn-proxy.git
+pip3 install cdn-proxy
 cdn-proxy --help
 ```
 
 ## Usage
 
-The structure for cdn-proxy commands is `cdn-proxy [provider] [action] ...` where:
+The structure for cdn-proxy commands is `cdn-proxy <cloudfront|cloudflare> <create|delete>` where:
 
-Provider is:
-* `cloudfront`
-* `cloudflare`
-  
-Action is:
-* `create <target>`
-* `delete <target>` 
-* `list` 
-
-The process and required options is different between providers, refer to the provider sections below for more details.
+The exact process and required options is different between providers, refer to the provider sections below for more details.
 
 ### CloudFront
 
-#### Overview
-
-The CloudFront module will set up the distribution that acts as a proxy through CloudFront. The origin and host header
-can be controlled per request by setting the Cdn-Proxy-Origin and Cdn-Proxy-Host headers. The X-Forwarded-For header
-will also be passed through from the client, if this isn't set howeveer it will default to a random IP address in the
-request to the origin which will allow bypassing app side IP ratelimiting in some cases.
-
-After deploying navigating to the distribution will show a help page with more info on headers to control the request
-as well as some examples.
-
-In addition to making requests manually with curl you can use the CDN Proxy's [Burp Suite Extension](#burp-suite-extension)
-to proxy all Burp requests through the CloudFront proxy. Among other things this allows you to browse any sites only
-exposed to CloudFront IPs like you normally would through the built in Burp browser.
-
-Since it's possible to dynamically set the backend per request with the CloudFront deployment we can iterate through
-a list of IP's comparing HTTP responses (or lack of) directly vs through the proxy fairly quickly. If we can't reach the IP
-directly but can through the proxy then we know IP allowlisting to the CloudFront network is in effect.
-
-Below is the output of scanning origins through CloudFront.
-
-
-```
-% cdn-proxy cloudfront scan ./ips.txt
-# of workers: 20
-Timeout in secs: 15
-1.1.1.1 (Host: 1.1.1.1) -- Proxy: open / Origin: open
-1.1.1.2 (Host: 1.1.1.2) -- Proxy: open / Origin: open
-1.1.1.3 (Host: 1.1.1.3) -- Proxy: open / Origin: open
-1.1.1.4 (Host: 1.1.1.4) -- Proxy: closed / Origin: closed
-1.1.1.5 (Host: 1.1.1.5) -- Proxy: closed / Origin: closed
-1.1.1.6 (Host: 1.1.1.6) -- Proxy: closed / Origin: closed
-1.1.1.7 (Host: 1.1.1.7) -- Proxy: closed / Origin: closed
-1.1.1.8 (Host: 1.1.1.8) -- Proxy: closed / Origin: closed
-1.1.1.9 (Host: 1.1.1.9) -- Proxy: closed / Origin: closed
-1.1.1.10 (Host: 1.1.1.10) -- Proxy: closed / Origin: closed
-```
-
-If the scan subcommand finds a valid file path as one of the arguments, cdn-proxy will search the file for IPs
-or CIDRs and scan each one found. This means you can simply point it to any text file that may contain configuration
-data, for example a terraform config file, it will pull out the valid IPs and CIDRs from it for scanning.
-
-Otherwise, if the argument is not a valid file, it should be file or CIDR to be scanned. Multiple arguments can be
-passed, as well as types mixed, so IPs, CIDRs, and file paths can all be specified in the same command.
-
-
-#### Caveats
-
-For the CloudFront module the target must be a hostname, this is a restriction in CloudFront on origin values of a
-distribution. To work around this, you might want to check to see if a given IP resolves to a usable hostname through
-a reverse IP DNS lookup. Worst case you can also set up your own public DNS record that resolves to the IP you want
-to target.
-
-The CloudFront module also is fairly slow and may take a while to set up and tear down.
-
 #### Usage
 
+cdn-proxy cloudfront -h
+
 ```
-Usage: cdn_proxy cloudfront [OPTIONS] COMMAND [ARGS]...
+Usage: cdn-proxy cloudfront [OPTIONS] COMMAND [ARGS]...
 
   Manage CloudFront distributions
 
 Options:
   --region REGION    Sets the AWS region.  [default: us-east-1]
   --profile PROFILE  Shared credential profile to use.
-  --help             Show this message and exit.
+  -h, --help         Show this message and exit.
 
 Commands:
   create  Create a new CloudFront distribution and Lambda@Edge function...
   delete  Disable and delete the specified distribution.
-  list    List CloudFront distributions IDs and targets created with...
-  scan    HTTP scan of IP's both directly and via proxy...
+  status  Get the status of the CloudFront deployment.
 ```
-
-
-```
-Usage: cdn_proxy cloudfront scan [OPTIONS] [TARGETS]...
-
-  HTTP scan of targets both directly and through the deployed proxy distribution.
-
-Arguments:
-  TARGETS...  List of IPs, CIDRs, or file paths (containing IPs or CIDRs)
-
-Options:
-  --workers INTEGER  Max concurrent workers.  [default: 20]
-  --timeout INTEGER  Request timeout in seconds.  [default: 15]
-  --host TEXT        String to set the host headert to, defaults to the origin being scanned.
-  --cdn-proxy TEXT   CDN Proxy domain name, if it can not be determened automatically.
-  -h, --help         Show this message and exit.
-```
-
-### CloudFlare
 
 #### Overview
 
-The CloudFlare module requires an existing zone to exist in the account already. It however is much faster to add/remove
-proxies then the CloudFront module.
+The CloudFront module will set up the distribution that acts as a proxy through CloudFront. It is not necessary to
+specify a target when using CloudFront and more then one target can be used with the same distribution. This is because
+the origin and host header can be set dynamically per request by setting the Cdn-Proxy-Origin and Cdn-Proxy-Host headers
+in the client request to the CDN. The X-Forwarded-For header will also be passed through from the client, if this isn't
+set it will default to a random IP address in the request to the origin which will allow bypassing app side IP ratelimiting
+in some cases.
 
-#### Caveats
+After deploying the CloudFront configuration with `cdn-proxy cloudfront create` you can navigate to the distribution to find
+a help page with more info on headers to control the request as well as some examples.
 
-One shortcoming of this module is that it does not set the host header to the target domain after the request passes
-through the CDN. This means this module will only be effective on origins that have a default virtual host set up
-hosting the website you're targeting.
+In addition to making requests manually with curl you can use the CDN Proxy's [Burp Suite Extension](#burp-suite-extension)
+to proxy all Burp requests through the CloudFront proxy. Among other things this allows you to browse any sites only exposed
+to CloudFront IPs like you normally would through the built in Burp browser.
 
-You can work around this limitation if you have an enterprise CloudFlare account. This is not handled by cdn-proxy
-currently, however you can configure this manually using a transform rule in your zone configuration. If you want to
-see support for this added to cdn-proxy let us know in a GitHub issue.
+To scan for origin IPs which only allow requests through the CDN network you can use [cdn-scanner](#cdn-scanner) or the
+(less-featured) web based scanner which is hosted at the CloudFront distribution domain name. You will find this domain
+name in the output of cdn-proxy after creating the distribution.
 
-#### Scan
+Using curl to make a request to a specific origin can be done with the following:
 
-Since it's possible to dynamically set the backend per request with the CloudFront deployment we can iterate through
-a list of IP's comparing HTTP responses (or lack of) directly vs through the proxy. If we can't reach the IP directly
-but can through the proxy then we know IP allowlisting to the CloudFront network is in effect.
+> curl -H 'Cdn-Proxy-Origin: <Origin IP>' <Distribution Domain Name>
 
-```
-% cdn-proxy cloudfront scan ./ips.txt
-# of workers: 20
-Timeout in secs: 15
-1.1.1.1 (Host: 1.1.1.1) -- Proxy: open / Origin: open
-1.1.1.2 (Host: 1.1.1.2) -- Proxy: open / Origin: open
-1.1.1.3 (Host: 1.1.1.3) -- Proxy: open / Origin: open
-1.1.1.4 (Host: 1.1.1.4) -- Proxy: closed / Origin: closed
-1.1.1.5 (Host: 1.1.1.5) -- Proxy: closed / Origin: closed
-1.1.1.6 (Host: 1.1.1.6) -- Proxy: closed / Origin: closed
-1.1.1.7 (Host: 1.1.1.7) -- Proxy: closed / Origin: closed
-1.1.1.8 (Host: 1.1.1.8) -- Proxy: closed / Origin: closed
-1.1.1.9 (Host: 1.1.1.9) -- Proxy: closed / Origin: closed
-1.1.1.10 (Host: 1.1.1.10) -- Proxy: closed / Origin: closed
-```
+Where "<Origin IP>" is the target origin IP and "<Distribution Domain Name>" is the domain name of the CloudFront distribution
+created with the `cdn-proxy cloudfront create` command. The domain name can also be found by running `cdn-proxy cloudfront status`.
 
-If the scan subcommand finds a valid file path as one of the arguments, cdn-proxy will search the file for IPs
-or CIDRs and scan each one found. This means you can simply point it to any text file that may contain configuration
-data, for example a terraform config file, it will pull out the valid IPs and CIDRs from it for scanning.
+On the backend CloudFront requires domain names for origins, to work around this the Lambda@Edge function associated with the
+distribution that sets the origin dynamically will convert IP address's it finds in the Cdn-Proxy-Origin header to an equivalant
+sslip.io subdomain. The sslip.io subdomain will be in the format of `1-1-1-1.sslip.io` and will map to the corresponding IP,
+effectively allowing us to use IPs when CloudFront only accepts domain names. This all happens transparently and is mentioned
+here for informational purposes.
 
-Otherwise, if the argument is not a valid file, it should be file or CIDR to be scanned. Multiple arguments can be
-passed, as well as types mixed, so IPs, CIDRs, and file paths can all be specified in the same command.
+The CloudFront module also is fairly slow and may take a while to set up and tear down, you however can reuse the same
+distribution for any target by changing the `Cdn-Proxy-Origin` header.
 
+### CloudFlare
 
 #### Usage
 
@@ -236,10 +148,44 @@ Commands:
   scan    HTTP scan of IP's both directly and via proxy...
 ```
 
+#### Overview
+
+*Warning: Please do not use this on a production domain.*
+
+The CloudFlare subcommand of cdn-proxy is a fair bit simpler then the cloudfront subcommand as it is only used for adding,
+removing, and listing proxied DNS records in an already existing domain. It can not create this domain for you and you can
+not specify targets dynamically.
+
+This requires an existing domain to already be created in CloudFront, this is because CloudFlare will not assign a temporary
+domain to you like CloudFront does. The domain needs to be registered and active, but should be spare domain only used for
+cdn-proxy. You will also want to disable all security features on this domain so they do not apply to requests passing through
+it.
+
+#### Caveats
+
+One shortcoming of this module is that it does not set the host header to the target domain after the request passes
+through the CDN. This means this module will only be effective on origins that do not have a default virtual host set up
+hosting the website you're targeting. Setting the host header in the client request will not work as expected since this
+will cause the request to be routed to a different CloudFront configuration.
+
+You can work around this limitation if you have an enterprise CloudFlare account. This however is not handled by cdn-proxy
+currently, but you can configure this manually using a transform rule in your zone configuration. If you want to see support
+for this added to cdn-proxy let us know in a GitHub issue.
+
+## cdn-scanner
+
+### Installation
+
+```sh
+GOPRIVATE=github.com/RhinoSecurityLabs/cdn-proxy go install github.com/RhinoSecurityLabs/cdn-proxy
+export PATH=$PATH:~/go/bin
+cdn-scanner -h
+```
+
 ## Burp Suite Extension
 The [Burp Suite extension script](./burp_extension/cdn_proxy_burp_ext.py) can be used to proxy traffic through a CloudFront proxy created with cdn-proxy.
 
-### Install
+### Installation
 ```
 git clone https://github.com/RhinoSecurityLabs/cdn-proxy.git
 cd cdn-proxy/burp_extension
