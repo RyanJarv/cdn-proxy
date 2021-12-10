@@ -19,41 +19,50 @@ class CloudFlare:
             type = "CNAME"
 
         yield "CloudFront Proxy {} -- Creating records for {}.{}".format(
-            target, "cdn-bypass-{}".format(target), self.zone_name
+            target, "cdn-proxy-{}".format(target), self.zone_name
         )
+        name = "cdn-proxy-{}".format(re.sub(r"\.", "-", target))
         self.cf.zones.dns_records.post(
             self.zone_id,
             data={
-                "name": "cdn-bypass-{}".format(re.sub(r"\.", "-", target)),
+                "name": name,
                 "type": type,
                 "content": target,
                 "proxied": True,
             },
         )
         yield "CloudFront Proxy {} -- Created".format(target)
+        return name,
 
     def delete(self, target):
-        yield "CloudFront Proxy -- Retrieving records for {}.{}".format(target, self.zone_name)
-        dns_records = self.cf.zones.dns_records.get(
-            self.zone_id,
-            params={
-                "name": "cdn-bypass-{}.{}".format(
-                    re.sub(r"\.", "-", target), self.zone_name
-                ),
-            },
-        )
+        if target:
+            targets = [f"cdn-proxy-{target}"]
+        else:
+            targets = [x[1].split('.')[0] for x in self.list()]
 
-        if len(dns_records) == 0:
-            print("[ERROR] No proxy found for {}".format(target))
-            return
-        elif len(dns_records) != 1:
-            raise UserWarning("Unexpected number of results")
+        for target in targets:
+            yield "CloudFront Proxy -- Retrieving records for {}.{}".format(target, self.zone_name)
 
-        self.cf.zones.dns_records.delete(
-            self.zone_id,
-            dns_records[0]["id"],
-        )
-        yield "CloudFront Proxy {} -- Deleted".format(target)
+            dns_records = self.cf.zones.dns_records.get(
+                self.zone_id,
+                params={
+                    "name": "{}.{}".format(
+                        re.sub(r"\.", "-", target), self.zone_name
+                    ),
+                },
+            )
+
+            if len(dns_records) == 0:
+                print("[ERROR] No proxy found for {}".format(target))
+                return
+            elif len(dns_records) != 1:
+                raise UserWarning("Unexpected number of results")
+
+            self.cf.zones.dns_records.delete(
+                self.zone_id,
+                dns_records[0]["id"],
+            )
+            yield "CloudFront Proxy {} -- Deleted".format(target)
 
     def list(self):
         page = 1
@@ -63,6 +72,6 @@ class CloudFlare:
                 self.zone_id, params={"per_page": 100, "page": page}
             )
             for domain in subdomains:
-                if re.match(r"cdn-bypass-.+?\..+", domain["name"]):
+                if re.match(r"cdn-proxy-.+?\..+", domain["name"]):
                     yield domain["content"], domain["name"]
             page += 1

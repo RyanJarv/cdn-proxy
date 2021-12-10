@@ -5,7 +5,7 @@ import (
 	"context"
 	"crypto/tls"
 	"fmt"
-	"github.com/RyanJarv/cdn-proxy/lib"
+	"github.com/RhinoSecurityLabs/cdn-proxy/lib"
 	"github.com/alitto/pond"
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/cloudflare/cloudflare-go"

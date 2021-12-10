@@ -1,10 +1,11 @@
+import re
 import typer
 
 from cdn_proxy.cloudflare import CloudFlare
 
 app = typer.Typer(
     name="cloudflare",
-    help="Manage CloudFlare distributions",
+    help="Manage CloudFlare proxies",
     context_settings={"help_option_names": ["-h", "--help"]},
 )
 
@@ -21,35 +22,21 @@ def session(
 
 
 @app.command()
-def create(
-    target: str = typer.Argument(
-        ..., help="The origin to target, can be an IP or hostname."
-    )
-):
-    """
-    Create a new CloudFront distribution and Lambda@Edge function targeting the specified origin.
+def create(target: str = typer.Argument(..., help="The origin to target, can be an IP or hostname.")):
+    """Create a new proxies CloudFlare DNS record targeting the specified origin."""
 
-    Requests that pass through this distribution will have their Host header rewritten by the Lambda@Edge function to
-    specify the target domain.
-
-    The X-Forwarded-For header will be also set to a random IP address by the Lambda@Edge function.
-    """
-
-    with typer.progressbar(
-        cloudflare.create(target), length=10, label=f"Creating {target}"
-    ) as progress:
+    with typer.progressbar(cloudflare.create(target), length=10, label=f"Creating {target}") as progress:
         for update in progress:
             progress.label = update
             progress.update(1)
-    typer.echo(f"Created distribution {id}", color=typer.colors.GREEN)
+    subdomain = re.sub(r'\.', '-', target)
+    typer.echo(f"Created proxy for {target} -- {subdomain}.{cloudflare.zone_name}", color=typer.colors.GREEN)
 
 
 @app.command()
-def delete(
-    id: str = typer.Argument(..., help="Optional device name to limit snapshots to.")
-):
+def delete(id: str = typer.Argument(None, help="Optional device name to limit snapshots to.")):
     """
-    Disable and delete the specified distribution.
+    Delete the delete the DNS record specified target.
 
     ID specifies the CloudFront distribution to delete, this can be found with the list command.
     """
@@ -65,11 +52,10 @@ def delete(
 @app.command(name="list")
 def _list():
     """
-    List CloudFront distributions IDs and targets created with cdn-proxy.
+    List CloudFlare DNS records created with cdn-proxy.
 
-    Distributions created with cdn-proxy are marked by setting the cdn-proxy-target tag to the name of the target. This
-    command will only list distributions with this tag key.
+    DNS records created with cdn-proxy will have a subdomain prefix of "cdn-proxy-". Records created with this tool
+    will have a suffix of the target name, records created with the GoLang scanner will have a number as the suffix.
     """
-
     for (target, subdomain) in cloudflare.list():
         typer.echo(f"* {typer.style(target, fg=typer.colors.CYAN)} -- {subdomain}")
