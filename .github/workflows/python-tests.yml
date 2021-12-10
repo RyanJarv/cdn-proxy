@@ -17,9 +17,12 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install -r requirements.txt
         python -m pip install -r requirements-dev.txt
-    - name: MyPy Type Checking
+    - name: Linting
       run: |
-        make test
-    - name: Running PyTest Tests
+        make mypy
+    - name: Type Checking
+      run: |
+        make mypy
+    - name: Testing
       run: |
         make test
