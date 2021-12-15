@@ -117,6 +117,7 @@ Using curl to make a request to a specific origin can be done with the following
 
 Where "<Origin IP>" is the target origin IP and "<Distribution Domain Name>" is the domain name of the CloudFront distribution
 created with the `cdn-proxy cloudfront create` command. The domain name can also be found by running `cdn-proxy cloudfront status`.
+More curl examples can be found at the end of this subcommand section.
 
 On the backend CloudFront requires domain names for origins, to work around this the Lambda@Edge function associated with the
 distribution that sets the origin dynamically will convert IP address's it finds in the Cdn-Proxy-Origin header to an equivalant
@@ -126,6 +127,42 @@ here for informational purposes.
 
 The CloudFront module also is fairly slow and may take a while to set up and tear down, you however can reuse the same
 distribution for any target by changing the `Cdn-Proxy-Origin` header.
+
+#### Headers
+* Cdn-Proxy-Origin
+  * This header is Required and needs to be set to the origin the request should be routed to after passing through
+CloudFront. You can set this to a hostname or an IP, however because CloudFront only supports hostnames for origins
+any IP will be replaced with the equivalent domain using sslip.io.
+* Cdn-Proxy-Host
+  * The value of the Host header in the request to the origin. This header is optional but recommended. If not set it will
+default to the value of Cdn-Proxy-Origin.
+* X-Forwarded-For
+  * Passed through to the origin if set (like most other non-listed headers). If this header is not set it defaults to a
+randomized IP address in the request to the origin. This allows for bypassing IP based rate limiting in the backend
+in some cases.
+  * You may also want to try setting this to trusted values such as 127.0.0.1 or another internal IP address to expose
+any administrative or debug pages restricted by IP in the web application (compared to restrictions enforced in
+CloudFront/WAF, which will already be disabled when using this proxy).
+  * Multiple caching proxies are sometimes used in front of the origin, say CloudFront routes to Varnish which routes to
+nginx. In cases like this, where you are using the nginx service as the origin, you may need to set the target IP you
+want to add multiple IPs to this header with the one you want to spoof on the far left (example: X-Forwarded-For:
+127.0.0.1, 172.32.10.10). It's also possible the second IP here needs to be a trusted IP on the internal network of
+the origin.
+
+#### Curl -- No Host Header Example
+
+Here we are simply forwarding to the public ifconfig.me service after the request passes through CloudFront. The IP returned will be the source IP our request made from the CloudFront network. We don't need to set Cdn-Proxy-Host because ifconfig.me responds the same regardless of what the host header is set to.
+
+```sh
+curl -H 'Cdn-Proxy-Origin: ifconfig.me' -H 'Cdn-Proxy-Host: ifconfig.me' XXXXXXXXXXXXX.cloudfront.net
+```
+
+#### Curl -- EC2 Origin Example
+More likely you'll be running something like this, where Cdn-Proxy-Origin is a specific backend server and Cdn-Proxy-Host is the domain name of the website it is running. If Cdn-Proxy-Host is not set correctly you may not be able to reach the site, but this depends on the server configuration.
+
+```sh
+curl -H 'Cdn-Proxy-Origin: ec2-XX-XX-XX-XX.us-west-2.compute.amazonaws.com' -H 'Cdn-Proxy-Host: example.com' XXXXXXXXXXXXX.cloudfront.net
+```
 
 ### CloudFlare
 
