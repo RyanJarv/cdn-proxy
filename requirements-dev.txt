@@ -2,7 +2,9 @@ astroid==2.8.2; python_version >= "3.6" and python_version < "4.0"
 atomicwrites==1.4.0; python_version >= "3.6" and python_full_version < "3.0.0" and sys_platform == "win32" or sys_platform == "win32" and python_version >= "3.6" and python_full_version >= "3.4.0"
 attrs==21.2.0; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.6"
 beautifulsoup4==4.10.0; python_full_version > "3.0.0"
+boto3-stubs==1.20.24; python_version >= "3.6"
 boto3==1.18.57; python_version >= "3.6"
+botocore-stubs==1.23.24; python_version >= "3.6"
 botocore==1.21.57; python_version >= "3.6"
 certifi==2021.5.30; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.6.0"
 cffi==1.14.6; python_version >= "3.6"
@@ -23,8 +25,10 @@ jsonlines==2.0.0; python_version >= "3.6"
 lazy-object-proxy==1.6.0; python_version >= "3.6" and python_full_version < "3.0.0" and python_version < "4.0" or python_version >= "3.6" and python_version < "4.0" and python_full_version >= "3.6.0"
 markupsafe==2.0.1; python_version >= "3.6"
 mccabe==0.6.1; python_version >= "3.6" and python_version < "4.0"
-more-itertools==8.10.0; python_version >= "3.5"
-moto==2.2.8
+moto==2.2.19
+mypy-boto3-cloudfront==1.20.1; python_version >= "3.6"
+mypy-boto3-iam==1.20.1; python_version >= "3.6"
+mypy-boto3-lambda==1.20.13; python_version >= "3.6"
 mypy-extensions==0.4.3; python_version >= "3.5"
 mypy==0.910; python_version >= "3.5"
 packaging==21.0; python_version >= "3.6"
@@ -48,7 +52,7 @@ toml==0.10.2; python_version >= "3.6" and python_full_version < "3.0.0" and pyth
 typed-ast==1.4.3; python_version < "3.8" and python_version >= "3.6" and implementation_name == "cpython"
 typer==0.3.2; python_version >= "3.6"
 types-requests==2.25.9
-typing-extensions==3.10.0.2; python_version >= "3.6" and python_version < "3.8"
+typing-extensions==3.10.0.2
 urllib3==1.26.7; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.5.0" and python_version < "4")
 websocket-client==1.2.1; python_version >= "3.6"
 werkzeug==2.0.2; python_version >= "3.6"

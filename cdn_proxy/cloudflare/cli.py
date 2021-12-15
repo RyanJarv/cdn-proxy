@@ -30,7 +30,7 @@ def create(target: str = typer.Argument(..., help="The origin to target, can be 
             progress.label = update
             progress.update(1)
     subdomain = re.sub(r'\.', '-', target)
-    typer.echo(f"Created proxy for {target} -- {subdomain}.{cloudflare.zone_name}", color=typer.colors.GREEN)
+    typer.echo(f"Created proxy for {target} -- cdn-proxy-{subdomain}.{cloudflare.zone_name}", color=typer.colors.GREEN)
 
 
 @app.command()

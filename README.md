@@ -164,6 +164,21 @@ More likely you'll be running something like this, where Cdn-Proxy-Origin is a s
 curl -H 'Cdn-Proxy-Origin: ec2-XX-XX-XX-XX.us-west-2.compute.amazonaws.com' -H 'Cdn-Proxy-Host: example.com' XXXXXXXXXXXXX.cloudfront.net
 ```
 
+#### Web Scanner
+
+If you browse to the distribution domain name after it is created with cdn-proxy it will by default serve a help page and simple web based
+scanner. The scanner will make requests through it's own domain and display the status code returned in the response. This is a simple
+alternative to running [cdn-scanner](#cdn-scanner), compared to cdn-scanner it however won't be as fast, does not attempt to interpret
+the meaning of status codes, can not generate a report, and does not compare proxied requests to direct requests.
+
+<img width="1140" alt="Screen Shot 2021-12-14 at 6 49 47 PM" src="https://user-images.githubusercontent.com/4079939/146115018-58662d62-ff0e-4017-a29f-4924070d8af2.png">
+
+In the image above 0 indicates an error of some kind, so maybe not as reliable either. This really just exists because I (@RyanJarv) wanted to
+learn how to create a single page web app in react and thought this might be kind of interesting. It does not actually set the headers in the
+client requests to the CDN like described above, instead it sets the equivalant in the query parameters which get treated the same in
+Lambda@Edge. This is due to javascript in the browser not having the ability to control headers in requests.
+
+
 ### CloudFlare
 
 #### Usage
@@ -211,18 +226,126 @@ for this added to cdn-proxy let us know in a GitHub issue.
 
 ## cdn-scanner
 
+Q: Why is this split up into another app? Why not include this functionality in the cdn-proxy python script?
+
+A: (@RyanJarv) The scanner actually was originally written in python and added as a subcommand in cdn-proxy. Python
+parallelisim and asyncio got the best of me however and this was all rewritten in a session of anger driven development.
+Now that it is written in GoLang, in a way that actually makes sense, it is ...much... faster then it was before. Client
+speed is pretty usefull when using CloudFront, this is because we can really send requests as fast as CloudFront will handle
+them.. which should be pretty fast.
+
+It is worth noting that the python version being slow had more to do with my lack of knowledge around writing fast/concurrent/async
+python code then python itself, although I'm sure both helped here quite a bit.
+
 ### Installation
 
 ```sh
 GOPRIVATE=github.com/RhinoSecurityLabs/cdn-proxy go install github.com/RhinoSecurityLabs/cdn-proxy
+mv ~/go/bin/cdn-{proxy,scanner}
 export PATH=$PATH:~/go/bin
 cdn-scanner -h
 ```
 
+### Usage
+
+```
+Usage of cdn-scanner: /var/folders/t6/z_k2wx1j3dbcf83ym91bspf40000gr/T/go-build1086559817/b001/exe/main [-domain string] [-report string] [-workers int] <cloudfront|cloudflare> [args...] <IP/CIDR/Path to File> ...
+  -domain string
+    	The domain to route requests through, fetched from AWS if not specified.
+  -report string
+    	JSON report file output location.
+  -workers int
+    	Maximum number of workers used to make requests, defaults to 100. (default 100)
+
+Sub Commands
+	cloudfront [IP/Hostname/CIDR/file path] ...
+
+		  -profile string
+		    	Proxy domain AWS Profile, not used if -proxyDomain is passed.
+		  -region string
+		    	Proxy domain AWS Region, not used if -proxyDomain is passed
+        cloudflare  [IP/Hostname/CIDR/file path] ...
+```
+
+### Scanner Overview
+
+The cloudflare or cloudfront subcommands both take a list of IPs, Hostnames, CIDRs or optionally files which in turn
+should contain a list of additional IPs, Hostnames, or CIDRs. Each network asset is then scanned, once for http and once
+for https, both directly as well as proxied through the CDN specified, the responses are then compared to determine
+whether IP allow listing is in effect for the asset.
+
+For example, if the TCP connection for direct http request responds is closed by the remote host and the request when
+proxied through the CDN responds with a 200 then this would indicate IP allow listing is used on the scanned asset.
+
+### Example output
+
+```
+http://1.2.3.4 -- Both: open (200)
+https://1.2.3.5 -- Via Proxy: filtered (504), Origin: closed (0)
+```
+
+In the output above the first line indicates that port 80 (http) at the address 1.2.3.4 is accessible both from
+the scanners current IP as well as from the source IP of the CDN used.
+
+The second line indicates that port 443 (https) at the address 1.2.3.5 was filtered (did not respond) when accessed
+through the proxy and when accessed directly the remote closed (remote rejected the connection) the connection.
+
+The status (open/closed/filtered) when for the proxied request is determined by the HTTP status code returned by the
+CDN the request was proxied through. Typically CDNs will have different 5XX error codes for various failure
+conditions which should allow you to determine if the remote rejected the connection, didn't respond, or timed out
+in some other way. Worth keeping in mind that associating these HTTP status codes with the correct state is a work
+in progress currently.
+
+Generally the interesting results you likely want to look for will be when the proxied request returns a 2XX status
+code and the direct request either is closed, filtered, or denied access (403). This very likely means there is
+IP allow listing in place on the origin and that you can bypass this by routing requests through a distribution you
+control in the CDN.
+
+### CloudFront Scanner
+
+The cloudfront subcommand assumes the value passed with -domain is a cloudfront distribution set up with
+cdn-proxy. If -domain is not passed then cdn-scanner will attempt to look for a CloudFront distribution in the
+current account created by cdn-proxy.
+The origin configuration is set dynamically for each request, making the CloudFront scanner much faster then
+the cloudflare one.
+
+
+### CloudFlare Scanner
+
+Note: Access keys need are assumed to be in the environment variables CLOUDFLARE_API_KEY and CLOUDFLARE_API_EMAIL.
+		
+The CloudFlare scanner works a bit differently, it does not necessarily need anything set up by cdn-proxy. This
+scanner only needs access to a spare CloudFlare zone. Please use a spare, rather then risking running this
+on any important domain.
+
+Each network address first adds a proxied DNS subdomain to the zone passed in the -domain option. It then
+makes a request to the recently created subdomain as well as to the network address directly comparing the two
+responses.
+
+After some time the subdomains will start getting reused, because it's difficult to know exactly when a change
+to the CloudFlare API has gone into effect it is necessary to peform several steps which slow this scan down
+quite a bit. First the subdomain that will be rotated is deleted from CloudFlare and we wait for either
+CloudFlare to start returning the appropriate error message or for DNS to fail. Once the subdomain has
+successfully been deleted it is then created again withh the new updated record. The proxied request then can
+be served once the subdomain is observed to start working again. So far this has been the most reilable method
+found, without these steps the results eventually become out of sync with the state the CloudFlare network was
+in when the request is made. This typically doesn't happen at first, but rather after the scan has run for some
+time suggesting that the CloudFlare API may start queing requests for individual users after some threshold.
+
 ## Burp Suite Extension
-The [Burp Suite extension script](./burp_extension/cdn_proxy_burp_ext.py) can be used to proxy traffic through a CloudFront proxy created with cdn-proxy.
+ 
+The [Burp Suite extension script](./burp_extension/cdn_proxy_burp_ext.py) can be used to proxy traffic through a CloudFront proxy created
+with cdn-proxy.
+
+<img width="755" alt="Screen Shot 2021-12-14 at 7 54 48 PM" src="https://user-images.githubusercontent.com/4079939/146120361-4b8f9d6d-afcd-4e93-beb1-b03b1dbc484c.png">
+
+The image above shows using the aws-proxy Burp Plugin and Burp's Builtin Chromium browser to proxy traffic through the CloudFront CDN. The IP that shows up in the
+left browser (64.252.70.134) is what Google's servers think the IP address of the client is. This IP of course is actually one of the many shared
+IPs used by CloudFront to make requests to backend servers, you can verify this by checking Amazon's [ip-ranges.json](https://ip-ranges.amazonaws.com/ip-ranges.json) and checking the IP falls in a CIDR range of the CloudFront service. In this case it does specifically for the `64.252.64.0/18` CIDR range, which
+is shown in the browser on the right. The third window is a non-proxied browser viewing the distribution shown in the Burp plugin window.
 
 ### Installation
+ 
 ```
 git clone https://github.com/RhinoSecurityLabs/cdn-proxy.git
 cd cdn-proxy/burp_extension

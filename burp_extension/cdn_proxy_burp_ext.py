@@ -1,8 +1,6 @@
-# AUTHOR: Dave Yesland @daveysec, Rhino Security Labs @rhinosecurity
-# Burp Suite extension which uses AWS API Gateway to change your IP on every request to bypass IP blocking.
-# More Info: https://rhinosecuritylabs.com/aws/bypassing-ip-based-blocking-aws/
-from copy import deepcopy
-from time import time
+# AUTHOR(s): Dave Yesland @daveysec and Ryan Gerstenkorn @ryan_jarv, Rhino Security Labs @rhinosecurity
+# Burp Suite extension which uses proxies requests through a CloudFront distribution set up with the cdn-proxy tool.
+# More Info: https://github.com/RhinoSecurityLabs/cdn-proxy
 
 from javax.swing import (
     JPanel,
@@ -16,23 +14,12 @@ from javax.swing import (
     ButtonGroup,
 )
 from burp import IBurpExtender, IExtensionStateListener, ITab, IHttpListener
-from java.awt import GridLayout
-import boto3
-import re
 
-
-# import xml.parsers.expat
-# xml.parsers.expat._xerces_parser_name = "org.apache.xerces.parsers.SAXParser"
-
-EXT_NAME = "IP Rotate"
+EXT_NAME = "CDN Proxy"
 ENABLED = '<html><h2><font color="green">Enabled</font></h2></html>'
 DISABLED = '<html><h2><font color="red">Disabled</font></h2></html>'
 STAGE_NAME = "burpendpoint"
 API_NAME = "BurpAPI"
-
-# import xml.etree.ElementTree as ET
-# ET.fromstring('<test></test>')
-
 
 class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
     def __init__(self):
@@ -72,16 +59,6 @@ class BurpExtender(IBurpExtender, IExtensionStateListener, ITab, IHttpListener):
                 proxy_host, httpService.getPort(), httpService.getProtocol() == "https"
             )
         )
-
-        # # Update the path to point to the API Gateway path
-        # req_head = new_headers[0]
-        # # hacky fix for https://github.com/RhinoSecurityLabs/IPRotate_Burp_Extension/issues/14
-        # if 'http://' in req_head or 'https://' in req_head:
-        #     cur_path = re.findall(r'https?:\/\/.*?\/(.*) ', req_head)[0]
-        #     new_headers[0] = re.sub(' (.*?) ', " /" + self.proxy_host + "/" + cur_path + " ", req_head)
-        #
-        # else:
-        #     new_headers[0] = re.sub(r' \/', " /" + self.proxy_host + "/", req_head)
 
         # Replace the Host header with the Gateway host
         for i, header in enumerate(headers):
