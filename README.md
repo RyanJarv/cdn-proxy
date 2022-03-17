@@ -53,7 +53,7 @@ Additionally, in the case of CloudFlare, the origin web app needs to use a defau
 because it is not possible to set the Host header arbitrarily on requests to the origin. It should
 be possible to perform this attack when this is not the case when you have access to a Enterprise CloudFlare account however
 this is not supported by cdn-proxy currently. To do this manually you need to ensure the CloudFlare configuration correctly
-sets the host header as the request passes through the CloudFlare network..
+sets the host header as the request passes through the CloudFlare network.
 
 ## cdn-proxy
 
