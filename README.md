@@ -1,6 +1,6 @@
 # CDN Proxy
-[![cdn-proxy Tests](https://github.com/RhinoSecurityLabs/cdn-proxy/actions/workflows/python-tests.yml/badge.svg)](https://github.com/RhinoSecurityLabs/cdn-proxy/actions/workflows/python-tests.yml)
-[![cdn-scanner Tests](https://github.com/RhinoSecurityLabs/cdn-proxy/actions/workflows/go-tests.yml/badge.svg)](https://github.com/RhinoSecurityLabs/cdn-proxy/actions/workflows/go-tests.yml)
+[![cdn-proxy Tests](https://github.com/RyanJarv/cdn-proxy/actions/workflows/python-tests.yml/badge.svg)](https://github.com/RyanJarv/cdn-proxy/actions/workflows/python-tests.yml)
+[![cdn-scanner Tests](https://github.com/RyanJarv/cdn-proxy/actions/workflows/go-tests.yml/badge.svg)](https://github.com/RyanJarv/cdn-proxy/actions/workflows/go-tests.yml)
 
 A tool that can be used by web app pentesters to create a copy of the targeted website with CDN and WAF restrictions
 disabled.
@@ -240,7 +240,7 @@ python code then python itself, although I'm sure both helped here quite a bit.
 ### Installation
 
 ```sh
-GOPRIVATE=github.com/RhinoSecurityLabs/cdn-proxy go install github.com/RhinoSecurityLabs/cdn-proxy
+GOPRIVATE=github.com/RyanJarv/cdn-proxy go install github.com/RyanJarv/cdn-proxy
 mv ~/go/bin/cdn-{proxy,scanner}
 export PATH=$PATH:~/go/bin
 cdn-scanner -h
@@ -347,7 +347,7 @@ is shown in the browser on the right. The third window is a non-proxied browser 
 ### Installation
  
 ```
-git clone https://github.com/RhinoSecurityLabs/cdn-proxy.git
+git clone https://github.com/RyanJarv/cdn-proxy.git
 cd cdn-proxy/burp_extension
 python3 -m venv venv
 source venv/bin/activate
@@ -369,9 +369,9 @@ In the new CDN Proxy tab that shows up, set the `Proxy Host` field to the domain
 
 ## Support
 
-Please [open an issue](https://github.com/RhinoSecurityLabs/cdn-proxy/issues/new) for support.
+Please [open an issue](https://github.com/RyanJarv/cdn-proxy/issues/new) for support.
 
 ## Contributing
 
 Please contribute using [Github Flow](https://guides.github.com/introduction/flow/). Create a branch, add commits, and
-[open a pull request](https://github.com/RhinoSecurityLabs/cdn-proxy/compare/).
+[open a pull request](https://github.com/RyanJarv/cdn-proxy/compare/).
