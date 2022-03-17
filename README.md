@@ -49,7 +49,8 @@ https://user-images.githubusercontent.com/4079939/130310987-3ad7e7b4-db7f-4a6e-b
   * [cdn-scanner](#cdn-scanner) can be used to find origins which are only accessible through the CDN network.
 * The origin allows access from the Shared IP range used by the CDN network.
 
-Additionally, in the case of CloudFlare, if the origin web app uses a default virtual host to serve the website. It should
+Additionally, in the case of CloudFlare, the origin web app needs to use a default virtual host to serve the website. This is
+because it is not possible to set the Host header arbitrarily on requests to the origin. It should
 be possible to perform this attack when this is not the case when you have access to a Enterprise CloudFlare account however
 this is not supported by cdn-proxy currently. To do this manually you need to ensure the CloudFlare configuration correctly
 sets the host header as the request passes through the CloudFlare network..
