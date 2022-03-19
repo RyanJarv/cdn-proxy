@@ -114,9 +114,11 @@ name in the output of cdn-proxy after creating the distribution.
 
 Using curl to make a request to a specific origin can be done with the following:
 
-> curl -H 'Cdn-Proxy-Origin: <Origin IP>' <Distribution Domain Name>
+```
+curl -H 'Cdn-Proxy-Origin: Origin_IP' Distribution_Domain_Name
+```
 
-Where "<Origin IP>" is the target origin IP and "<Distribution Domain Name>" is the domain name of the CloudFront distribution
+Where "Origin_IP" is the target origin IP and "Distribution_Domain_Name" is the domain name of the CloudFront distribution
 created with the `cdn-proxy cloudfront create` command. The domain name can also be found by running `cdn-proxy cloudfront status`.
 More curl examples can be found at the end of this subcommand section.
 
