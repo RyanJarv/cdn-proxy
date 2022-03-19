@@ -176,7 +176,7 @@ the meaning of status codes, can not generate a report, and does not compare pro
 
 <img width="1140" alt="Screen Shot 2021-12-14 at 6 49 47 PM" src="https://user-images.githubusercontent.com/4079939/146115018-58662d62-ff0e-4017-a29f-4924070d8af2.png">
 
-In the image above 0 indicates an error of some kind, so maybe not as reliable either. This really just exists because I (@RyanJarv) wanted to
+In the image above 0 indicates an error of some kind, so maybe not as reliable either. This really just exists because I wanted to
 learn how to create a single page web app in react and thought this might be kind of interesting. It does not actually set the headers in the
 client requests to the CDN like described above, instead it sets the equivalant in the query parameters which get treated the same in
 Lambda@Edge. This is due to javascript in the browser not having the ability to control headers in requests.
@@ -231,7 +231,7 @@ for this added to cdn-proxy let us know in a GitHub issue.
 
 Q: Why is this split up into another app? Why not include this functionality in the cdn-proxy python script?
 
-A: (@RyanJarv) The scanner actually was originally written in python and added as a subcommand in cdn-proxy. Python
+A: The scanner actually was originally written in python and added as a subcommand in cdn-proxy. Python
 parallelisim and asyncio got the best of me however and this was all rewritten in a session of anger driven development.
 Now that it is written in GoLang, in a way that actually makes sense, it is ...much... faster then it was before. Client
 speed is pretty usefull when using CloudFront, this is because we can really send requests as fast as CloudFront will handle
