@@ -212,7 +212,7 @@ removing, and listing proxied DNS records in an already existing domain. It can 
 not specify targets dynamically.
 
 This requires an existing domain to already be created in CloudFront, this is because CloudFlare will not assign a temporary
-domain to you like CloudFront does. The domain needs to be registered and active, but should be spare domain only used for
+domain to you like CloudFront does. The domain needs to be registered and active, but should be a spare domain only used for
 cdn-proxy. You will also want to disable all security features on this domain so they do not apply to requests passing through
 it.
 
@@ -226,6 +226,9 @@ will cause the request to be routed to a different CloudFront configuration.
 You can work around this limitation if you have an enterprise CloudFlare account. This however is not handled by cdn-proxy
 currently, but you can configure this manually using a transform rule in your zone configuration. If you want to see support
 for this added to cdn-proxy let us know in a GitHub issue.
+
+A second limitation is you can not fully control the X-Forwarded-For header in the request to the origin. CloudFlare treats
+this as a protected header.
 
 ## cdn-scanner
 
