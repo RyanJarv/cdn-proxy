@@ -5,6 +5,10 @@
 A tool that can be used by web app pentesters to create a copy of the targeted website with CDN and WAF restrictions
 disabled.
 
+Note: If you find this project useful or would like it improved and want to sponsor development ping me at me@ryanjarv.sh.
+Currently I'm considering considering supporting other services besides CDN's in a similar way, so if you have anything you
+would like to see get added here let me know.
+
 ## Table of Contents
 
 - [Overview](#overview)
