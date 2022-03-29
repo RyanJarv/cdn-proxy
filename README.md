@@ -234,7 +234,7 @@ for this added to cdn-proxy let us know in a GitHub issue.
 A second limitation is you can not fully control the X-Forwarded-For header in the request to the origin. CloudFlare treats
 this as a protected header.
 
-## cdn-scanner
+# CDN Scanner
 
 Q: Why is this split up into another app? Why not include this functionality in the cdn-proxy python script?
 
@@ -247,7 +247,7 @@ them.. which should be pretty fast.
 It is worth noting that the python version being slow had more to do with my lack of knowledge around writing fast/concurrent/async
 python code then python itself, although I'm sure both helped here quite a bit.
 
-### Installation
+## Installation
 
 ```sh
 GOPRIVATE=github.com/RyanJarv/cdn-proxy go install github.com/RyanJarv/cdn-proxy
@@ -256,7 +256,7 @@ export PATH=$PATH:~/go/bin
 cdn-scanner -h
 ```
 
-### Usage
+## Usage
 
 ```
 Usage of cdn-scanner: /var/folders/t6/z_k2wx1j3dbcf83ym91bspf40000gr/T/go-build1086559817/b001/exe/main [-domain string] [-report string] [-workers int] <cloudfront|cloudflare> [args...] <IP/CIDR/Path to File> ...
@@ -277,7 +277,7 @@ Sub Commands
         cloudflare  [IP/Hostname/CIDR/file path] ...
 ```
 
-### Scanner Overview
+## Scanner Overview
 
 The cloudflare or cloudfront subcommands both take a list of IPs, Hostnames, CIDRs or optionally files which in turn
 should contain a list of additional IPs, Hostnames, or CIDRs. Each network asset is then scanned, once for http and once
@@ -311,7 +311,7 @@ code and the direct request either is closed, filtered, or denied access (403). 
 IP allow listing in place on the origin and that you can bypass this by routing requests through a distribution you
 control in the CDN.
 
-### CloudFront Scanner
+## CloudFront Scanner
 
 The cloudfront subcommand assumes the value passed with -domain is a cloudfront distribution set up with
 cdn-proxy. If -domain is not passed then cdn-scanner will attempt to look for a CloudFront distribution in the
@@ -320,7 +320,7 @@ The origin configuration is set dynamically for each request, making the CloudFr
 the cloudflare one.
 
 
-### CloudFlare Scanner
+## CloudFlare Scanner
 
 Note: Access keys need are assumed to be in the environment variables CLOUDFLARE_API_KEY and CLOUDFLARE_API_EMAIL.
 		
@@ -342,7 +342,7 @@ found, without these steps the results eventually become out of sync with the st
 in when the request is made. This typically doesn't happen at first, but rather after the scan has run for some
 time suggesting that the CloudFlare API may start queing requests for individual users after some threshold.
 
-## Burp Suite Extension
+# Burp Suite Extension
  
 The [Burp Suite extension script](./burp_extension/cdn_proxy_burp_ext.py) can be used to proxy traffic through a CloudFront proxy created
 with cdn-proxy.
@@ -354,7 +354,7 @@ left browser (64.252.70.134) is what Google's servers think the IP address of th
 IPs used by CloudFront to make requests to backend servers, you can verify this by checking Amazon's [ip-ranges.json](https://ip-ranges.amazonaws.com/ip-ranges.json) and checking the IP falls in a CIDR range of the CloudFront service. In this case it does specifically for the `64.252.64.0/18` CIDR range, which
 is shown in the browser on the right. The third window is a non-proxied browser viewing the distribution shown in the Burp plugin window.
 
-### Installation
+## Installation
  
 ```
 git clone https://github.com/RyanJarv/cdn-proxy.git
@@ -376,6 +376,8 @@ In Burp Extender under the Extensions tab:
 
 In the new CDN Proxy tab that shows up, set the `Proxy Host` field to the domain of the distribution created with
 `cdn-proxy cloudflare create`. Traffic from Burp will now be routed through the CloudFront proxy.
+
+# All
 
 ## Support
 
