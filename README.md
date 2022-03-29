@@ -13,13 +13,17 @@ would like to see get added here let me know.
 
 - [Overview](#overview)
 - [Prerequisites](#prerequisites)
-- [Installation](#installation)
-- [CloudFront](#cloudfront)
-- [CloudFlare](#cloudflare)
-- [Burp Suite Extension](#burp-suite-extension)
-- [Support](#support)
-- [Contributing](#contributing)
-
+- [CDN Proxy](#cdn-proxy) -- Automates deployment of infrastructure.
+  - [Installation](#installation)
+  - [CloudFront](#cloudfront)
+  - [CloudFlare](#cloudflare) 
+- [CDN Scanner](#cdn-scanner) -- Scanner to discover affected origins.
+  - [Installation](#installation)
+  - [Usage](#usage)
+  - [Scanner Overview](#scanner-overview)
+  - [CloudFront Scanner](#cloudfront-scanner)
+  - [CloudFlare Scanner](#cloudflare-scanner)
+- [Burp Suite Extension](#burp-suite-extension) -- Allows you to browse affected origins via a local browser.
 
 ## Overview
 
@@ -59,9 +63,9 @@ be possible to perform this attack when this is not the case when you have acces
 this is not supported by cdn-proxy currently. To do this manually you need to ensure the CloudFlare configuration correctly
 sets the host header as the request passes through the CloudFlare network.
 
-## cdn-proxy
+# cdn-proxy
 
-### Installation
+## Installation
 
 ```sh
 pip3 install cdn-proxy
@@ -74,9 +78,9 @@ The structure for cdn-proxy commands is `cdn-proxy <cloudfront|cloudflare> <crea
 
 The exact process and required options is different between providers, refer to the provider sections below for more details.
 
-### CloudFront
+## CloudFront
 
-#### Usage
+### Usage
 
 cdn-proxy cloudfront -h
 
@@ -96,7 +100,7 @@ Commands:
   status  Get the status of the CloudFront deployment.
 ```
 
-#### Overview
+### Overview
 
 The CloudFront module will set up the distribution that acts as a proxy through CloudFront. It is not necessary to
 specify a target when using CloudFront and more then one target can be used with the same distribution. This is because
@@ -135,7 +139,7 @@ here for informational purposes.
 The CloudFront module also is fairly slow and may take a while to set up and tear down, you however can reuse the same
 distribution for any target by changing the `Cdn-Proxy-Origin` header.
 
-#### Headers
+### Headers
 * Cdn-Proxy-Origin
   * This header is Required and needs to be set to the origin the request should be routed to after passing through
 CloudFront. You can set this to a hostname or an IP, however because CloudFront only supports hostnames for origins
@@ -156,7 +160,7 @@ want to add multiple IPs to this header with the one you want to spoof on the fa
 127.0.0.1, 172.32.10.10). It's also possible the second IP here needs to be a trusted IP on the internal network of
 the origin.
 
-#### Curl -- No Host Header Example
+### Curl -- No Host Header Example
 
 Here we are simply forwarding to the public ifconfig.me service after the request passes through CloudFront. The IP returned will be the source IP our request made from the CloudFront network. We don't need to set Cdn-Proxy-Host because ifconfig.me responds the same regardless of what the host header is set to.
 
@@ -164,14 +168,14 @@ Here we are simply forwarding to the public ifconfig.me service after the reques
 curl -H 'Cdn-Proxy-Origin: ifconfig.me' -H 'Cdn-Proxy-Host: ifconfig.me' XXXXXXXXXXXXX.cloudfront.net
 ```
 
-#### Curl -- EC2 Origin Example
+### Curl -- EC2 Origin Example
 More likely you'll be running something like this, where Cdn-Proxy-Origin is a specific backend server and Cdn-Proxy-Host is the domain name of the website it is running. If Cdn-Proxy-Host is not set correctly you may not be able to reach the site, but this depends on the server configuration.
 
 ```sh
 curl -H 'Cdn-Proxy-Origin: ec2-XX-XX-XX-XX.us-west-2.compute.amazonaws.com' -H 'Cdn-Proxy-Host: example.com' XXXXXXXXXXXXX.cloudfront.net
 ```
 
-#### Web Scanner
+### Web Scanner
 
 If you browse to the distribution domain name after it is created with cdn-proxy it will by default serve a help page and simple web based
 scanner. The scanner will make requests through it's own domain and display the status code returned in the response. This is a simple
@@ -186,9 +190,9 @@ client requests to the CDN like described above, instead it sets the equivalant 
 Lambda@Edge. This is due to javascript in the browser not having the ability to control headers in requests.
 
 
-### CloudFlare
+## CloudFlare
 
-#### Usage
+### Usage
 
 ```
 Usage: cdn_proxy cloudflare [OPTIONS] COMMAND [ARGS]...
@@ -207,7 +211,7 @@ Commands:
   scan    HTTP scan of IP's both directly and via proxy...
 ```
 
-#### Overview
+### Overview
 
 *Warning: Please do not use this on a production domain.*
 
@@ -220,7 +224,7 @@ domain to you like CloudFront does. The domain needs to be registered and active
 cdn-proxy. You will also want to disable all security features on this domain so they do not apply to requests passing through
 it.
 
-#### Caveats
+### Caveats
 
 One shortcoming of this module is that it does not set the host header to the target domain after the request passes
 through the CDN. This means this module will only be effective on origins that do not have a default virtual host set up
@@ -376,8 +380,6 @@ In Burp Extender under the Extensions tab:
 
 In the new CDN Proxy tab that shows up, set the `Proxy Host` field to the domain of the distribution created with
 `cdn-proxy cloudflare create`. Traffic from Burp will now be routed through the CloudFront proxy.
-
-# All
 
 ## Support
 
