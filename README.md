@@ -8,6 +8,9 @@ disabled.
 **Note:** If you find this project useful or would like it improved and want to sponsor development ping me at me@ryanjarv.sh. I
 haven't gone through the trouble of setting anything like this up yet, so mostly just want to know if I should.
 
+This project was partly developed for my own purposes at a time when I needed things to simply work. At the moment documentation
+as well as usability could be improved quite a bit.
+
 Currently I'm considering supporting other services besides CDN's in a similar way, so if you have
 anything you would like to see get added here let me know as well.
 
