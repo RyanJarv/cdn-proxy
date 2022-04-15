@@ -11,8 +11,8 @@ haven't gone through the trouble of setting anything like this up yet, so mostly
 This project was partly developed for my own purposes at a time when I needed things to simply work. At the moment documentation
 as well as usability could be improved quite a bit.
 
-Currently I'm considering supporting other services besides CDN's in a similar way, so if you have
-anything you would like to see get added here let me know as well.
+I'm also considering supporting other services besides CDN's in a similar way, so if you have
+anything you would like to see get added here let me know.
 
 ## Table of Contents
 
