@@ -5,6 +5,9 @@
 A tool that can be used by web app pentesters to create a copy of the targeted website with CDN and WAF restrictions
 disabled.
 
+Related Blog Post: [Bypassing CDN WAF’s with Alternate Domain Routing
+](https://blog.ryanjarv.sh/2022/03/16/bypassing-wafs-with-alternate-domain-routing.html).
+
 **Note:** If you find this project useful or would like it improved and want to sponsor development ping me at me@ryanjarv.sh. I
 haven't gone through the trouble of setting anything like this up yet, so mostly just want to know if I should.
 
@@ -37,9 +40,6 @@ This repo contains three seperate tools for different tasks, these are listed be
 
 cdn-proxy is a set of tools for bypassing IP allow listing intended to restrict origin access to requests originating
 from shared CDNs.
-
-Related Blog Post: [Bypassing CDN WAF’s with Alternate Domain Routing
-](https://blog.ryanjarv.sh/2022/03/16/bypassing-wafs-with-alternate-domain-routing.html).
 
 Bypassing protections at the CDN layer through direct access is well documented, however a common response to prevent
 the issue is to set up IP allow listing from the CDNs shared network range. Because shared CDNs use a common pool of
