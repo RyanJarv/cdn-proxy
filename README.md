@@ -38,6 +38,9 @@ This repo contains three seperate tools for different tasks, these are listed be
 cdn-proxy is a set of tools for bypassing IP allow listing intended to restrict origin access to requests originating
 from shared CDNs.
 
+Related Blog Post: [Bypassing CDN WAF’s with Alternate Domain Routing
+](https://blog.ryanjarv.sh/2022/03/16/bypassing-wafs-with-alternate-domain-routing.html).
+
 Bypassing protections at the CDN layer through direct access is well documented, however a common response to prevent
 the issue is to set up IP allow listing from the CDNs shared network range. Because shared CDNs use a common pool of
 IPs for origin requests these IP restrictions can be bypassed by routing traffic through a second attacker controlled
