@@ -78,8 +78,11 @@ sets the host header as the request passes through the CloudFlare network.
 
 ## Installation
 
+Note: At the moment the PyPi version is not the latest version and may not work for you. I'll fix this soon, in the mean time
+you can install/update directly from the GitHub repo.
+
 ```sh
-pip3 install cdn-proxy
+pip3 install -U git+https://github.com/RyanJarv/cdn-proxy.git@main
 cdn-proxy --help
 ```
 
