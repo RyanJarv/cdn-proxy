@@ -319,7 +319,7 @@ class CloudFront:
 
         resp = client.list_origin_request_policies(Type="custom")
 
-        for policy in resp["OriginRequestPolicyList"]["Items"]:
+        for policy in resp["OriginRequestPolicyList"].get("Items", []):
             if policy["OriginRequestPolicy"]["OriginRequestPolicyConfig"]["Name"] == policy_name:
                 policy_id = policy["OriginRequestPolicy"]["Id"]
 
