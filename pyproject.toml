@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "cdn-proxy"
-version = "v0.1.3"
+version = "v0.1.10"
 description = "Take advantage of IP whitelisting of shared CDNs."
 authors = ["Ryan Gerstenkorn"]
 license = "BSD-3"
