@@ -1,4 +1,4 @@
-module  github.com/RyanJarv/cdn-proxy
+module github.com/RyanJarv/cdn-proxy
 
 go 1.17
 
