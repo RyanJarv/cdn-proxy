@@ -1,6 +1,6 @@
 # AUTHOR(s): Dave Yesland @daveysec and Ryan Gerstenkorn @ryan_jarv, Rhino Security Labs @rhinosecurity
 # Burp Suite extension which uses proxies requests through a CloudFront distribution set up with the cdn-proxy tool.
-# More Info: https://github.com/RhinoSecurityLabs/cdn-proxy
+# More Info: https://github.com/RyanJarv/cdn-proxy
 
 from javax.swing import (
     JPanel,
