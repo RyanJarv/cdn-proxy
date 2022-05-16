@@ -8,14 +8,12 @@ disabled.
 Related Blog Post: [Bypassing CDN WAF’s with Alternate Domain Routing
 ](https://blog.ryanjarv.sh/2022/03/16/bypassing-wafs-with-alternate-domain-routing.html).
 
-**Note:** If you find this project useful or would like it improved and want to sponsor development ping me at me@ryanjarv.sh. I
-haven't gone through the trouble of setting anything like this up yet, so mostly just want to know if I should.
+**Note:** If you find this project useful, would like it improved, and want to sponsor further development of it ping me
+at me@ryanjarv.sh. Below are a few ideas:
 
-This project was partly developed for my own purposes at a time when I needed things to simply work. At the moment documentation
-as well as usability could be improved quite a bit.
-
-I'm also considering supporting other services besides CDN's in a similar way, so if you have
-anything you would like to see get added here let me know.
+* Support for other SaaS products that can act as non-conventional proxies.
+* IaC setup for deploying automated scanning of your own infrastructure.
+* Improved support, documentation, and ease of use for web app pentesters.
 
 ## Table of Contents
 
