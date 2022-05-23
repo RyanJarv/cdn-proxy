@@ -18,7 +18,7 @@ if typing.TYPE_CHECKING:
     import mypy_boto3_cloudfront
 
 # All JS and CSS is compiled into index.html, this just makes it easier to deploy and serve from the lambda.
-STATIC_PAGE = Path(__file__).parent / 'req_lambda/build/index.html'
+STATIC_PAGE = Path(__file__).parent / 'req_lambda/public/index.html'
 
 
 @dataclass
