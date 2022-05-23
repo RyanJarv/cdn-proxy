@@ -187,21 +187,6 @@ More likely you'll be running something like this, where Cdn-Proxy-Origin is a s
 curl -H 'Cdn-Proxy-Origin: ec2-XX-XX-XX-XX.us-west-2.compute.amazonaws.com' -H 'Cdn-Proxy-Host: example.com' XXXXXXXXXXXXX.cloudfront.net
 ```
 
-### Web Scanner
-
-If you browse to the distribution domain name after it is created with cdn-proxy it will by default serve a help page and simple web based
-scanner. The scanner will make requests through it's own domain and display the status code returned in the response. This is a simple
-alternative to running [cdn-scanner](#cdn-scanner), compared to cdn-scanner it however won't be as fast, does not attempt to interpret
-the meaning of status codes, can not generate a report, and does not compare proxied requests to direct requests.
-
-<img width="1140" alt="Screen Shot 2021-12-14 at 6 49 47 PM" src="https://user-images.githubusercontent.com/4079939/146115018-58662d62-ff0e-4017-a29f-4924070d8af2.png">
-
-In the image above 0 indicates an error of some kind, so maybe not as reliable either. This really just exists because I wanted to
-learn how to create a single page web app in react and thought this might be kind of interesting. It does not actually set the headers in the
-client requests to the CDN like described above, instead it sets the equivalant in the query parameters which get treated the same in
-Lambda@Edge. This is due to javascript in the browser not having the ability to control headers in requests.
-
-
 ## CloudFlare
 
 ### Usage
