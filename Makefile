@@ -15,3 +15,9 @@ mypy:
 
 test:
 	python3 -m pytest ./tests/test_unit.py ./tests/test_lambda_request.py
+
+update-py-deps:
+	#poetry update
+	poetry export --without-hashes -o requirements.txt
+	poetry export --dev --without-hashes -o requirements-dev.txt
+

@@ -1,18 +1,20 @@
-beautifulsoup4==4.10.0; python_full_version > "3.0.0"
-boto3==1.18.57; python_version >= "3.6"
-botocore==1.21.57; python_version >= "3.6"
-certifi==2021.5.30; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.6.0"
-charset-normalizer==2.0.6; python_full_version >= "3.6.0" and python_version >= "3"
+attrs==21.4.0; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.6"
+beautifulsoup4==4.11.1; python_full_version >= "3.6.0"
+boto3==1.23.6; python_version >= "3.6"
+botocore==1.26.6; python_version >= "3.6"
+certifi==2022.5.18.1; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.6.0" and python_version >= "3.6"
+charset-normalizer==2.0.12; python_full_version >= "3.6.0" and python_version >= "3"
 click==7.1.2; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.5.0" and python_version >= "3.6"
-cloudflare==2.8.15
-idna==3.2; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.6.0" and python_version >= "3.5"
+cloudflare==2.9.10
+idna==3.3; python_version >= "3.5" and python_full_version < "3.0.0" or python_full_version >= "3.6.0" and python_version >= "3.5"
 jmespath==0.10.0; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.3.0" and python_version >= "3.6"
-jsonlines==2.0.0; python_version >= "3.6"
+jsonlines==3.0.0; python_version >= "3.6"
 python-dateutil==2.8.2; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.3.0" and python_version >= "3.6"
-pyyaml==5.4.1; python_version >= "2.7" and python_full_version < "3.0.0" or python_full_version >= "3.6.0"
-requests==2.26.0; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.6.0")
-s3transfer==0.5.0; python_version >= "3.6"
+pyyaml==6.0; python_version >= "3.6"
+requests==2.27.1; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.6.0")
+s3transfer==0.5.2; python_version >= "3.6"
 six==1.16.0; python_version >= "3.6" and python_full_version < "3.0.0" or python_full_version >= "3.3.0" and python_version >= "3.6"
-soupsieve==2.2.1; python_version >= "3.6" and python_full_version > "3.0.0"
+soupsieve==2.3.2.post1; python_version >= "3.6" and python_full_version >= "3.6.0"
 typer==0.3.2; python_version >= "3.6"
-urllib3==1.26.7; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.5.0" and python_version < "4")
+typing-extensions==4.1.1; python_version < "3.8" and python_version >= "3.6"
+urllib3==1.26.9; (python_version >= "2.7" and python_full_version < "3.0.0") or (python_full_version >= "3.5.0" and python_version < "4")
