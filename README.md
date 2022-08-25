@@ -6,14 +6,7 @@ A tool that can be used by web app pentesters to create a copy of the targeted w
 disabled.
 
 Related Blog Post: [Bypassing CDN WAF’s with Alternate Domain Routing
-](https://blog.ryanjarv.sh/2022/03/16/bypassing-wafs-with-alternate-domain-routing.html).
-
-**Note:** If you find this project useful, would like it improved, and want to sponsor further development of it ping me
-at me@ryanjarv.sh. Below are a few ideas:
-
-* Support for other SaaS products that can act as non-conventional proxies.
-* IaC setup for deploying automated scanning of your own infrastructure.
-* Improved support, documentation, and ease of use for web app pentesters.
+](https://blog.apnic.net/2022/05/19/bypassing-cdn-wafs-with-alternate-domain-routing/).
 
 ## Table of Contents
 
